@@ -1,0 +1,8 @@
+{
+  "chatContainer": ".webcast-chatroom___list, .webcast-chatroom___message-list, [data-testid='chatroom-message-list']",
+  "commentNode": ".webcast-chatroom___item, .webcast-chatroom___message-item, [data-testid='chatroom-message-item']",
+  "nickname": ".webcast-chatroom___nickname, .webcast-chatroom___author-name, .nickname",
+  "username": ".webcast-chatroom___username, .webcast-chatroom___author-handle, .username",
+  "message": ".webcast-chatroom___content, .webcast-chatroom___message-text, .content",
+  "profilePic": ".webcast-chatroom___avatar img, .avatar img"
+}
