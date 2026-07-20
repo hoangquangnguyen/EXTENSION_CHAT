@@ -2,6 +2,12 @@
 // TikTok Live chat DOM scraper script using MutationObserver.
 
 (() => {
+  if (window.hasTikTokChatContentScriptInjected) {
+    console.log("TikTok Chat Extension: Content Script already injected, skipping.");
+    return;
+  }
+  window.hasTikTokChatContentScriptInjected = true;
+
   const DEFAULT_SELECTORS = {
     chatContainer: ".webcast-chatroom___list, .webcast-chatroom___message-list, [data-testid='chatroom-message-list']",
     commentNode: ".webcast-chatroom___item, .webcast-chatroom___message-item, [data-testid='chatroom-message-item']",
@@ -19,10 +25,27 @@
 
   console.log("TikTok Chat Extension: Content Script loaded.");
 
+  // Check if extension context is still valid
+  function isContextValid() {
+    try {
+      return !!chrome.runtime && !!chrome.runtime.id;
+    } catch (e) {
+      return false;
+    }
+  }
+
   // Parse an individual comment DOM node safely
   function parseCommentNode(node) {
     try {
+      if (!isContextValid()) {
+        stopMonitoring();
+        stopCheckerLoop();
+        return;
+      }
       if (!node || node.nodeType !== Node.ELEMENT_NODE) return;
+
+      if (node.hasAttribute("data-ext-parsed")) return;
+      node.setAttribute("data-ext-parsed", "true");
 
       const nicknameEl = activeSelectors.nickname ? node.querySelector(activeSelectors.nickname) : null;
       const usernameEl = activeSelectors.username ? node.querySelector(activeSelectors.username) : null;
@@ -86,6 +109,11 @@
 
     try {
       observer = new MutationObserver((mutations) => {
+        if (!isContextValid()) {
+          stopMonitoring();
+          stopCheckerLoop();
+          return;
+        }
         for (const mutation of mutations) {
           if (mutation.type === "childList") {
             for (const node of mutation.addedNodes) {
@@ -131,6 +159,11 @@
       clearInterval(checkerInterval);
     }
     checkerInterval = setInterval(() => {
+      if (!isContextValid()) {
+        stopMonitoring();
+        stopCheckerLoop();
+        return;
+      }
       if (!monitoringActive) {
         stopCheckerLoop();
         return;

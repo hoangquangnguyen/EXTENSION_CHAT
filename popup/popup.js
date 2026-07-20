@@ -233,8 +233,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const active = isValidTab ? monitoringToggle.checked : false;
         updateStatusUI(active, message.status);
       } else if (message.type === "CHAT_MESSAGE") {
-        // Only render comments if monitoring is active
-        if (monitoringToggle.checked && isValidTab) {
+        // Only render comments if monitoring is active and message is relayed (sender.tab is undefined)
+        if (monitoringToggle.checked && isValidTab && !sender.tab) {
           appendComment(message.payload);
         }
       }

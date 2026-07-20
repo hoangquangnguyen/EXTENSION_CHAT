@@ -2,6 +2,12 @@
 // TikTok Live chat DOM scraper script using MutationObserver.
 
 (() => {
+  if (window.hasTikTokChatContentScriptInjected) {
+    console.log("TikTok Chat Extension: Content Script already injected, skipping.");
+    return;
+  }
+  window.hasTikTokChatContentScriptInjected = true;
+
   const DEFAULT_SELECTORS = {
     chatContainer: ".webcast-chatroom___list, .webcast-chatroom___message-list, [data-testid='chatroom-message-list']",
     commentNode: ".webcast-chatroom___item, .webcast-chatroom___message-item, [data-testid='chatroom-message-item']",
@@ -23,6 +29,9 @@
   function parseCommentNode(node) {
     try {
       if (!node || node.nodeType !== Node.ELEMENT_NODE) return;
+
+      if (node.hasAttribute("data-ext-parsed")) return;
+      node.setAttribute("data-ext-parsed", "true");
 
       const nicknameEl = activeSelectors.nickname ? node.querySelector(activeSelectors.nickname) : null;
       const usernameEl = activeSelectors.username ? node.querySelector(activeSelectors.username) : null;
