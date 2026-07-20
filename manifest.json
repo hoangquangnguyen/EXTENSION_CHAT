@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "TikTok Chat Chrome Extension",
+  "version": "1.0.0",
+  "description": "Extracts live chat comments from TikTok Live stream pages and forwards them to a local server.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "offscreen"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.tiktok.com/*/live*",
+        "*://*.tiktok.com/live*"
+      ],
+      "js": ["content-script.js"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html"
+  }
+}
