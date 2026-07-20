@@ -12,8 +12,23 @@ let connectionSettings = {
 };
 let monitoringActive = false;
 
+// Buffer and connection states
+const commentBuffer = [];
+const MAX_BUFFER_SIZE = 100;
+if (typeof globalThis !== "undefined") {
+  globalThis.commentBuffer = commentBuffer;
+}
+let connectionStatus = "disconnected";
+let reconnectIntervalId = null;
+let isFlushing = false;
+
 // Send connection status updates to other extension contexts (e.g. background, popup)
 function sendConnectionStatus(status) {
+  connectionStatus = status;
+  // Update storage so that the popup can immediately read current state on open
+  chrome.storage.local.set({ connection_status: status }, () => {
+    const err = chrome.runtime.lastError;
+  });
   chrome.runtime.sendMessage({
     type: "CONNECTION_STATUS",
     status
@@ -21,6 +36,37 @@ function sendConnectionStatus(status) {
     // Suppress errors about closed listeners (e.g. if popup is not open)
     const err = chrome.runtime.lastError;
   });
+}
+
+// Schedules a reconnection attempt if monitoring is active
+function handleDisconnect() {
+  sendConnectionStatus("disconnected");
+  if (monitoringActive && !reconnectIntervalId) {
+    console.log("Offscreen: Scheduling reconnection attempt in 5 seconds...");
+    reconnectIntervalId = setInterval(() => {
+      if (monitoringActive) {
+        if (!socket && connectionStatus !== "connected" && connectionStatus !== "connecting") {
+          console.log("Offscreen: Reconnection timer triggered. Attempting to connect...");
+          if (connectionSettings.protocol === "ws") {
+            connectWebSocket();
+          } else if (connectionSettings.protocol === "http") {
+            checkHttpConnection();
+          }
+        }
+      } else {
+        stopReconnectTimer();
+      }
+    }, 5000);
+  }
+}
+
+// Clears the reconnection timer
+function stopReconnectTimer() {
+  if (reconnectIntervalId) {
+    clearInterval(reconnectIntervalId);
+    reconnectIntervalId = null;
+    console.log("Offscreen: Reconnection timer stopped.");
+  }
 }
 
 // Establishes a connection based on protocol setting
@@ -40,6 +86,8 @@ function connectWebSocket() {
     socket.onopen = () => {
       console.log("Offscreen: WebSocket connection established.");
       sendConnectionStatus("connected");
+      stopReconnectTimer();
+      flushBuffer();
     };
 
     socket.onmessage = (event) => {
@@ -52,12 +100,13 @@ function connectWebSocket() {
 
     socket.onclose = (event) => {
       console.log(`Offscreen: WebSocket connection closed: ${event.reason}`);
-      sendConnectionStatus("disconnected");
       socket = null;
+      handleDisconnect();
     };
   } catch (error) {
     console.error("Offscreen: Failed to create WebSocket connection:", error);
-    sendConnectionStatus("disconnected");
+    socket = null;
+    handleDisconnect();
   }
 }
 
@@ -65,8 +114,59 @@ function connectWebSocket() {
 function disconnectWebSocket() {
   if (socket) {
     console.log("Offscreen: Disconnecting WebSocket...");
+    socket.onclose = null; // Remove listener to prevent triggering handleDisconnect on manual close
     socket.close();
     socket = null;
+  }
+}
+
+// Polls the HTTP server to check availability and recover
+function checkHttpConnection() {
+  const { host, port, path } = connectionSettings;
+  const formattedPath = path.startsWith("/") ? path : `/${path}`;
+  const url = `http://${host}:${port}${formattedPath}`;
+
+  console.log(`Offscreen: Polling HTTP server at ${url}...`);
+  sendConnectionStatus("connecting");
+
+  if (commentBuffer.length > 0) {
+    // If we have comments, use the first comment as a probe
+    const nextPayload = commentBuffer[0];
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(nextPayload)
+    })
+    .then(response => {
+      if (response.ok) {
+        console.log("Offscreen: HTTP server is back online. Flushed first buffered comment.");
+        commentBuffer.shift();
+        sendConnectionStatus("connected");
+        stopReconnectTimer();
+        flushBuffer();
+      } else {
+        console.error(`Offscreen: HTTP poll failed with status: ${response.status}`);
+        sendConnectionStatus("disconnected");
+      }
+    })
+    .catch(error => {
+      console.error("Offscreen: HTTP poll failed:", error);
+      sendConnectionStatus("disconnected");
+    });
+  } else {
+    // Otherwise do a simple GET request
+    fetch(url, { method: "GET" })
+    .then(() => {
+      console.log("Offscreen: HTTP server is back online.");
+      sendConnectionStatus("connected");
+      stopReconnectTimer();
+    })
+    .catch(error => {
+      console.error("Offscreen: HTTP poll failed:", error);
+      sendConnectionStatus("disconnected");
+    });
   }
 }
 
@@ -76,12 +176,91 @@ function initializeConnection() {
     if (connectionSettings.protocol === "ws") {
       connectWebSocket();
     } else if (connectionSettings.protocol === "http") {
-      sendConnectionStatus("connected"); // HTTP has no persistent link, consider connected if active
+      disconnectWebSocket();
+      // For HTTP, default to connected state unless we hit a failure
+      sendConnectionStatus("connected");
+      stopReconnectTimer();
     }
   } else {
     disconnectWebSocket();
+    stopReconnectTimer();
+    commentBuffer.length = 0; // Clear queue on stop
     sendConnectionStatus("disconnected");
   }
+}
+
+// Pushes comments to the FIFO buffer
+function queueComment(payload) {
+  if (commentBuffer.length >= MAX_BUFFER_SIZE) {
+    const discarded = commentBuffer.shift();
+    console.warn("Offscreen: Buffer full. Discarded oldest comment:", discarded);
+  }
+  commentBuffer.push(payload);
+  console.log(`Offscreen: Buffered comment. Current buffer size: ${commentBuffer.length}`);
+}
+
+// Flushes the memory buffer
+function flushBuffer() {
+  if (isFlushing || commentBuffer.length === 0) return;
+  isFlushing = true;
+  console.log(`Offscreen: Flushing ${commentBuffer.length} comments from buffer...`);
+
+  if (connectionSettings.protocol === "ws") {
+    while (commentBuffer.length > 0) {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        const payload = commentBuffer[0];
+        try {
+          socket.send(JSON.stringify(payload));
+          commentBuffer.shift();
+        } catch (error) {
+          console.error("Offscreen: WebSocket send error during flush:", error);
+          break;
+        }
+      } else {
+        console.warn("Offscreen: WebSocket closed during flush.");
+        break;
+      }
+    }
+    isFlushing = false;
+  } else if (connectionSettings.protocol === "http") {
+    sendNextHttpBufferedComment();
+  }
+}
+
+// Recursively flushes HTTP queue items sequentially
+function sendNextHttpBufferedComment() {
+  if (commentBuffer.length === 0 || !monitoringActive) {
+    isFlushing = false;
+    return;
+  }
+
+  const payload = commentBuffer[0];
+  const { host, port, path } = connectionSettings;
+  const formattedPath = path.startsWith("/") ? path : `/${path}`;
+  const url = `http://${host}:${port}${formattedPath}`;
+
+  fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  })
+  .then(response => {
+    if (response.ok) {
+      commentBuffer.shift();
+      sendNextHttpBufferedComment();
+    } else {
+      console.error(`Offscreen: HTTP POST failed during flush: ${response.status}`);
+      isFlushing = false;
+      handleDisconnect();
+    }
+  })
+  .catch(error => {
+    console.error("Offscreen: HTTP POST error during flush:", error);
+    isFlushing = false;
+    handleDisconnect();
+  });
 }
 
 // Sends comment payload via WebSocket
@@ -92,9 +271,11 @@ function sendViaWebSocket(payload) {
       console.log("Offscreen: Sent comment via WebSocket:", payload.message);
     } catch (error) {
       console.error("Offscreen: Error sending via WebSocket:", error);
+      queueComment(payload);
     }
   } else {
-    console.warn("Offscreen: WebSocket not open. Message dropped.");
+    console.warn("Offscreen: WebSocket not open. Comment buffered.");
+    queueComment(payload);
   }
 }
 
@@ -105,6 +286,12 @@ function sendViaHttpPost(payload) {
   const url = `http://${host}:${port}${formattedPath}`;
 
   console.log(`Offscreen: Sending HTTP POST to ${url}`);
+
+  if (connectionStatus === "disconnected") {
+    queueComment(payload);
+    return;
+  }
+
   fetch(url, {
     method: "POST",
     headers: {
@@ -115,12 +302,20 @@ function sendViaHttpPost(payload) {
   .then(response => {
     if (!response.ok) {
       console.error(`Offscreen: HTTP POST failed with status: ${response.status}`);
+      queueComment(payload);
+      handleDisconnect();
     } else {
       console.log("Offscreen: Sent comment via HTTP POST successfully.");
+      if (connectionStatus !== "connected") {
+        sendConnectionStatus("connected");
+        stopReconnectTimer();
+      }
     }
   })
   .catch(error => {
     console.error("Offscreen: HTTP POST error:", error);
+    queueComment(payload);
+    handleDisconnect();
   });
 }
 
@@ -148,17 +343,17 @@ chrome.storage.local.get(["connection_settings", "monitoring_active"], (result) 
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === "local") {
     let settingsChanged = false;
-    
+
     if (changes.connection_settings) {
       connectionSettings = { ...connectionSettings, ...changes.connection_settings.newValue };
       settingsChanged = true;
     }
-    
+
     if (changes.monitoring_active) {
       monitoringActive = !!changes.monitoring_active.newValue;
       settingsChanged = true;
     }
-    
+
     if (settingsChanged) {
       console.log("Offscreen: Settings or state changed. Re-initializing...");
       initializeConnection();
