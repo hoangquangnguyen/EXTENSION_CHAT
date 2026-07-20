@@ -1,0 +1,50 @@
+- id: "1"
+  title: Initialize extension package and storage configuration
+  description: >-
+    Set up the basic Chrome Manifest V3 extension structure and selectors.json configuration, 
+    copying default DOM selectors to chrome.storage.local upon installation.
+  spec_checkpoint: false
+  done_checkpoint: false
+  invoke_dev_with: >-
+    Ensure selectors.json includes complete fields for the TikTok live chat elements 
+    to initialize the storage correctly.
+- id: "2"
+  title: Implement Content Script for real-time comment extraction
+  description: >-
+    Create the Content Script to monitor the TikTok Live chat DOM using MutationObserver and parse 
+    comment nodes dynamically, with a 2-second checker interval to re-attach the observer.
+  spec_checkpoint: true
+  done_checkpoint: true
+  invoke_dev_with: >-
+    Use a high-performance MutationObserver. Wrap extraction logic in robust try-catch blocks 
+    so any structural errors do not crash or block the host TikTok page execution.
+- id: "3"
+  title: Implement Offscreen Document for local server forwarding
+  description: >-
+    Implement a background Service Worker that spawns an Offscreen Document, manages WebSocket 
+    and HTTP clients, and forwards parsed comment flat JSON payloads to localhost.
+  spec_checkpoint: true
+  done_checkpoint: true
+  invoke_dev_with: >-
+    Avoid opening WebSockets or making network calls from the content script directly. 
+    Route messages via chrome.runtime.sendMessage to background, which relays them to offscreen.
+- id: "4"
+  title: Add disconnection buffering and connection status monitoring
+  description: >-
+    Implement connection status polling and reconnect every 5 seconds. Implement a FIFO memory 
+    queue of up to 100 comments in the Offscreen Document to buffer drops and flush upon reconnection.
+  spec_checkpoint: false
+  done_checkpoint: false
+  invoke_dev_with: >-
+    Keep the FIFO buffer entirely in-memory using a plain JS array in the offscreen context. 
+    Do not use extension storage for buffering to avoid heavy disk write overhead.
+- id: "5"
+  title: Create Popup UI dashboard with settings and rolling comment preview
+  description: >-
+    Develop the popup UI with connection configuration settings, a start/stop toggle, 
+    connection status indicators, and a rolling 20-comment preview using popup-only volatile memory.
+  spec_checkpoint: true
+  done_checkpoint: true
+  invoke_dev_with: >-
+    Create a modern, clean UI using vanilla CSS. Ensure that any comments beyond the rolling 20-limit 
+    are immediately discarded from popup DOM and memory to prevent leaks.
