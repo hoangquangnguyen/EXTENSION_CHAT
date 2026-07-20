@@ -25,6 +25,10 @@
       ⚠️ Please navigate to a TikTok Live stream page to start monitoring.
     </div>
 
+    <!-- Error message banner -->
+    <div id="error-banner" class="error-banner hidden">
+    </div>
+
     <!-- Active controls card -->
     <div class="control-card">
       <div class="control-info">
@@ -61,13 +65,14 @@
         <div class="form-group row">
           <div class="form-col">
             <label for="input-port">Port</label>
-            <input type="text" id="input-port" placeholder="3000">
+            <input type="text" id="input-port" placeholder="6161">
           </div>
           <div class="form-col">
             <label for="input-path">Path</label>
             <input type="text" id="input-path" placeholder="/">
           </div>
         </div>
+        <div id="test-result" class="test-result hidden"></div>
       </div>
 
       <!-- CSS Selectors Header -->
@@ -110,7 +115,8 @@
     </div>
 
     <!-- Action Bar -->
-    <div class="action-bar">
+    <div class="action-bar" style="gap: 8px;">
+      <button id="btn-test-conn" class="btn-secondary">Test Connection</button>
       <button id="btn-save" class="btn-primary">Save Configuration</button>
     </div>
 

@@ -534,3 +534,67 @@ input[type="text"]:focus, select:focus {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Error Banner */
+.error-banner {
+  background-color: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  animation: fadeIn 0.3s ease;
+  word-break: break-word;
+}
+
+/* Secondary Button (Test connection) */
+.btn-secondary {
+  background-color: transparent;
+  border: 1px solid var(--accent-cyan);
+  color: var(--accent-cyan);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-secondary:hover {
+  background-color: rgba(6, 182, 212, 0.1);
+  transform: translateY(-1px);
+}
+.btn-secondary:active {
+  transform: translateY(1px);
+}
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Test Connection Result styling */
+.test-result {
+  font-size: 0.75rem;
+  padding: 8px 10px;
+  border-radius: 6px;
+  line-height: 1.3;
+  margin-top: 8px;
+  animation: fadeIn 0.3s ease;
+  word-break: break-word;
+}
+.test-result.success {
+  background-color: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #a7f3d0;
+}
+.test-result.error {
+  background-color: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+.test-result.testing {
+  background-color: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fde68a;
+}

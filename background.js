@@ -16,7 +16,7 @@ chrome.runtime.onInstalled.addListener(async () => {
     if (!storageData.connection_settings) {
       const defaultSettings = {
         host: "localhost",
-        port: "3000",
+        port: "6161",
         protocol: "ws",
         path: "/"
       };
@@ -66,7 +66,7 @@ async function manageOffscreenDocument(active) {
         console.log("Creating offscreen document...");
         await chrome.offscreen.createDocument({
           url: chrome.runtime.getURL("offscreen/offscreen.html"),
-          reasons: [chrome.offscreen.Reason.WEBSOCKETS],
+          reasons: [chrome.offscreen.Reason.DOM_SCRAPING],
           justification: "Forward TikTok Live comment payloads to local WebSocket/HTTP server"
         });
         console.log("Offscreen document created.");
@@ -105,5 +105,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
   } else if (message.type === "CONNECTION_STATUS") {
     console.log(`Connection status update received in background: ${message.status}`);
+  }
+});
+
+// Check monitoring state and sync offscreen document on Service Worker startup
+chrome.storage.local.get(["monitoring_active"], (res) => {
+  if (res && res.monitoring_active) {
+    console.log("Service Worker startup: Monitoring active. Re-syncing offscreen document...");
+    manageOffscreenDocument(true);
   }
 });

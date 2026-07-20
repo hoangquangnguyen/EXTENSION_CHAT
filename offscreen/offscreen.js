@@ -6,7 +6,7 @@ console.log("TikTok Chat Extension: Offscreen Script loaded.");
 let socket = null;
 let connectionSettings = {
   host: "localhost",
-  port: "3000",
+  port: "6161",
   protocol: "ws",
   path: "/"
 };
@@ -26,16 +26,27 @@ let isFlushing = false;
 function sendConnectionStatus(status) {
   connectionStatus = status;
   // Update storage so that the popup can immediately read current state on open
-  chrome.storage.local.set({ connection_status: status }, () => {
-    const err = chrome.runtime.lastError;
-  });
-  chrome.runtime.sendMessage({
-    type: "CONNECTION_STATUS",
-    status
-  }, () => {
-    // Suppress errors about closed listeners (e.g. if popup is not open)
-    const err = chrome.runtime.lastError;
-  });
+  if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+    chrome.storage.local.set({ connection_status: status }, () => {
+      const err = chrome.runtime.lastError;
+    });
+  }
+  if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
+    chrome.runtime.sendMessage({
+      type: "CONNECTION_STATUS",
+      status
+    }, () => {
+      // Suppress errors about closed listeners (e.g. if popup is not open)
+      const err = chrome.runtime.lastError;
+    });
+  }
+}
+
+// Save connection error message to local storage for UI display
+function saveConnectionError(errMessage) {
+  if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+    chrome.storage.local.set({ last_connection_error: errMessage });
+  }
 }
 
 // Schedules a reconnection attempt if monitoring is active
@@ -86,6 +97,7 @@ function connectWebSocket() {
     socket.onopen = () => {
       console.log("Offscreen: WebSocket connection established.");
       sendConnectionStatus("connected");
+      saveConnectionError(""); // clear any past errors
       stopReconnectTimer();
       flushBuffer();
     };
@@ -96,15 +108,20 @@ function connectWebSocket() {
 
     socket.onerror = (error) => {
       console.error("Offscreen: WebSocket error:", error);
+      saveConnectionError(`WebSocket error: Connection refused or host unreachable at ${host}:${port}.`);
     };
 
     socket.onclose = (event) => {
-      console.log(`Offscreen: WebSocket connection closed: ${event.reason}`);
+      console.log(`Offscreen: WebSocket connection closed: code=${event.code}, reason=${event.reason}`);
       socket = null;
+      if (event.code !== 1000 && event.code !== 1005) {
+        saveConnectionError(`WebSocket closed: Connection failed (code ${event.code}). Server might be offline.`);
+      }
       handleDisconnect();
     };
   } catch (error) {
     console.error("Offscreen: Failed to create WebSocket connection:", error);
+    saveConnectionError(`WebSocket creation failed: ${error.message || error}`);
     socket = null;
     handleDisconnect();
   }
@@ -144,16 +161,19 @@ function checkHttpConnection() {
         console.log("Offscreen: HTTP server is back online. Flushed first buffered comment.");
         commentBuffer.shift();
         sendConnectionStatus("connected");
+        saveConnectionError("");
         stopReconnectTimer();
         flushBuffer();
       } else {
         console.error(`Offscreen: HTTP poll failed with status: ${response.status}`);
         sendConnectionStatus("disconnected");
+        saveConnectionError(`HTTP poll failed with status code ${response.status}.`);
       }
     })
     .catch(error => {
       console.error("Offscreen: HTTP poll failed:", error);
       sendConnectionStatus("disconnected");
+      saveConnectionError(`HTTP connection failed: host ${host}:${port} is unreachable.`);
     });
   } else {
     // Otherwise do a simple GET request
@@ -161,11 +181,13 @@ function checkHttpConnection() {
     .then(() => {
       console.log("Offscreen: HTTP server is back online.");
       sendConnectionStatus("connected");
+      saveConnectionError("");
       stopReconnectTimer();
     })
     .catch(error => {
       console.error("Offscreen: HTTP poll failed:", error);
       sendConnectionStatus("disconnected");
+      saveConnectionError(`HTTP connection failed: host ${host}:${port} is unreachable.`);
     });
   }
 }
@@ -173,6 +195,7 @@ function checkHttpConnection() {
 // Initialize active connections depending on monitoring state and protocol
 function initializeConnection() {
   if (monitoringActive) {
+    saveConnectionError(""); // clear when starting a new session
     if (connectionSettings.protocol === "ws") {
       connectWebSocket();
     } else if (connectionSettings.protocol === "http") {
@@ -186,6 +209,7 @@ function initializeConnection() {
     stopReconnectTimer();
     commentBuffer.length = 0; // Clear queue on stop
     sendConnectionStatus("disconnected");
+    saveConnectionError(""); // clear error when stopped
   }
 }
 
@@ -331,42 +355,48 @@ function handleChatMessage(payload) {
 }
 
 // Fetch configuration from local storage on start
-chrome.storage.local.get(["connection_settings", "monitoring_active"], (result) => {
-  if (result.connection_settings) {
-    connectionSettings = { ...connectionSettings, ...result.connection_settings };
-  }
-  monitoringActive = !!result.monitoring_active;
-  initializeConnection();
-});
-
-// Watch storage changes for dynamic configuration updates
-chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName === "local") {
-    let settingsChanged = false;
-
-    if (changes.connection_settings) {
-      connectionSettings = { ...connectionSettings, ...changes.connection_settings.newValue };
-      settingsChanged = true;
+if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+  chrome.storage.local.get(["connection_settings", "monitoring_active"], (result) => {
+    if (result.connection_settings) {
+      connectionSettings = { ...connectionSettings, ...result.connection_settings };
     }
+    monitoringActive = !!result.monitoring_active;
+    initializeConnection();
+  });
 
-    if (changes.monitoring_active) {
-      monitoringActive = !!changes.monitoring_active.newValue;
-      settingsChanged = true;
-    }
+  // Watch storage changes for dynamic configuration updates
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === "local") {
+      let settingsChanged = false;
 
-    if (settingsChanged) {
-      console.log("Offscreen: Settings or state changed. Re-initializing...");
-      initializeConnection();
+      if (changes.connection_settings) {
+        connectionSettings = { ...connectionSettings, ...changes.connection_settings.newValue };
+        settingsChanged = true;
+      }
+
+      if (changes.monitoring_active) {
+        monitoringActive = !!changes.monitoring_active.newValue;
+        settingsChanged = true;
+      }
+
+      if (settingsChanged) {
+        console.log("Offscreen: Settings or state changed. Re-initializing...");
+        initializeConnection();
+      }
     }
-  }
-});
+  });
+} else {
+  console.warn("chrome.storage.local is not available. Offscreen document is loaded outside of extension context.");
+}
 
 // Listener for relayed messages from Background Service Worker
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === "CHAT_MESSAGE") {
-    // Only process comments relayed by the background Service Worker (where sender.tab is undefined)
-    if (!sender.tab) {
-      handleChatMessage(message.payload);
+if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessage) {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === "CHAT_MESSAGE") {
+      // Only process comments relayed by the background Service Worker (where sender.tab is undefined)
+      if (!sender.tab) {
+        handleChatMessage(message.payload);
+      }
     }
-  }
-});
+  });
+}

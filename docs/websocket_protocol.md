@@ -19,12 +19,12 @@ Mặc định, Extension kết nối đến máy chủ thông qua giao thức v�
 * **Mặc định:**
   * **Protocol (Giao thức):** `ws` (WebSocket) hoặc `http` (HTTP Post)
   * **Host:** `localhost`
-  * **Port:** `3000`
+  * **Port:** `6161`
   * **Path:** `/`
-* **Địa chỉ kết nối đầy đủ:** `ws://localhost:3000/`
+* **Địa chỉ kết nối đầy đủ:** `ws://localhost:6161/`
 
 > [!NOTE]
-> Bạn có thể thay đổi cấu hình này động thông qua giao diện Pop-up của Extension. Nếu đổi sang giao thức HTTP, Extension sẽ chuyển sang gửi dữ liệu qua phương thức `POST` đến địa chỉ `http://localhost:3000/`.
+> Bạn có thể thay đổi cấu hình này động thông qua giao diện Pop-up của Extension. Nếu đổi sang giao thức HTTP, Extension sẽ chuyển sang gửi dữ liệu qua phương thức `POST` đến địa chỉ `http://localhost:6161/`.
 
 ---
 

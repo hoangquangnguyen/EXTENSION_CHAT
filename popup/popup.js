@@ -7,6 +7,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const statusIndicator = document.getElementById("status-indicator");
   const statusText = document.getElementById("status-text");
   const warningBanner = document.getElementById("warning-banner");
+  const errorBanner = document.getElementById("error-banner");
+  const btnTestConn = document.getElementById("btn-test-conn");
+  const testResult = document.getElementById("test-result");
   
   const btnConfig = document.getElementById("btn-config");
   const panelConfig = document.getElementById("panel-config");
@@ -71,24 +74,35 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // Update connection status badge styling
-  function updateStatusUI(active, status) {
+  function updateStatusUI(active, status, errorMsg = "") {
     statusIndicator.className = "status-indicator";
     
     if (!active) {
       statusIndicator.classList.add("disconnected");
       statusText.textContent = "Disconnected";
+      if (errorBanner) errorBanner.classList.add("hidden");
       return;
     }
 
     if (status === "connected") {
       statusIndicator.classList.add("connected");
       statusText.textContent = "Connected";
+      if (errorBanner) errorBanner.classList.add("hidden");
     } else if (status === "connecting") {
       statusIndicator.classList.add("connecting");
       statusText.textContent = "Connecting";
+      if (errorBanner) errorBanner.classList.add("hidden");
     } else {
       statusIndicator.classList.add("disconnected");
       statusText.textContent = "Disconnected";
+      if (errorBanner) {
+        if (errorMsg) {
+          errorBanner.textContent = `❌ Connection Error: ${errorMsg}`;
+          errorBanner.classList.remove("hidden");
+        } else {
+          errorBanner.classList.add("hidden");
+        }
+      }
     }
   }
 
@@ -187,16 +201,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Load config & prefill UI form
   if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-    chrome.storage.local.get(["connection_settings", "selectors", "monitoring_active", "connection_status"], (res) => {
-      const settings = res.connection_settings || { host: "localhost", port: "3000", protocol: "ws", path: "/" };
+    chrome.storage.local.get(["connection_settings", "selectors", "monitoring_active", "connection_status", "last_connection_error"], (res) => {
+      const settings = res.connection_settings || { host: "localhost", port: "6161", protocol: "ws", path: "/" };
       const selectors = res.selectors || {};
       const active = isValidTab ? !!res.monitoring_active : false;
       const status = res.connection_status || "disconnected";
+      const errorMsg = res.last_connection_error || "";
 
       // Fill connection inputs
       inputProtocol.value = settings.protocol || "ws";
       inputHost.value = settings.host || "localhost";
-      inputPort.value = settings.port || "3000";
+      inputPort.value = settings.port || "6161";
       inputPath.value = settings.path || "/";
 
       // Fill selector inputs
@@ -212,16 +227,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         monitoringToggle.checked = active;
       }
       
-      updateStatusUI(active, status);
+      updateStatusUI(active, status, errorMsg);
     });
 
     // Listen to Storage changes dynamically
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === "local") {
-        if (changes.connection_status || changes.monitoring_active) {
-          chrome.storage.local.get(["monitoring_active", "connection_status"], (res) => {
+        if (changes.connection_status || changes.monitoring_active || changes.last_connection_error) {
+          chrome.storage.local.get(["monitoring_active", "connection_status", "last_connection_error"], (res) => {
             const active = isValidTab ? !!res.monitoring_active : false;
-            updateStatusUI(active, res.connection_status || "disconnected");
+            updateStatusUI(active, res.connection_status || "disconnected", res.last_connection_error || "");
           });
         }
       }
@@ -231,12 +246,95 @@ document.addEventListener("DOMContentLoaded", async () => {
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message.type === "CONNECTION_STATUS") {
         const active = isValidTab ? monitoringToggle.checked : false;
-        updateStatusUI(active, message.status);
+        chrome.storage.local.get(["last_connection_error"], (res) => {
+          updateStatusUI(active, message.status, res.last_connection_error || "");
+        });
       } else if (message.type === "CHAT_MESSAGE") {
         // Only render comments if monitoring is active and message is relayed (sender.tab is undefined)
         if (monitoringToggle.checked && isValidTab && !sender.tab) {
           appendComment(message.payload);
         }
+      }
+    });
+  }
+
+  // Test Connection handler
+  if (btnTestConn && testResult) {
+    btnTestConn.addEventListener("click", () => {
+      const protocol = inputProtocol.value.trim();
+      const host = inputHost.value.trim() || "localhost";
+      const port = inputPort.value.trim() || "6161";
+      const path = inputPath.value.trim();
+      const formattedPath = path.startsWith("/") ? path : `/${path}`;
+
+      // Reset UI feedback states
+      testResult.className = "test-result testing";
+      testResult.textContent = `Testing connection to ${protocol}://${host}:${port}${formattedPath}...`;
+      testResult.classList.remove("hidden");
+      btnTestConn.disabled = true;
+
+      let testSocket = null;
+      let timeoutId = null;
+
+      const cleanUp = () => {
+        btnTestConn.disabled = false;
+        if (timeoutId) clearTimeout(timeoutId);
+      };
+
+      if (protocol === "ws") {
+        const url = `ws://${host}:${port}${formattedPath}`;
+        try {
+          testSocket = new WebSocket(url);
+          
+          timeoutId = setTimeout(() => {
+            testResult.className = "test-result error";
+            testResult.textContent = `❌ Connection Timeout. Host is unreachable or took too long to respond.`;
+            if (testSocket) {
+              testSocket.onopen = null;
+              testSocket.onerror = null;
+              testSocket.close();
+            }
+            cleanUp();
+          }, 5000);
+
+          testSocket.onopen = () => {
+            testResult.className = "test-result success";
+            testResult.textContent = `✅ Connection Success! WebSocket server is running at ${url}.`;
+            testSocket.close();
+            cleanUp();
+          };
+
+          testSocket.onerror = (e) => {
+            testResult.className = "test-result error";
+            testResult.textContent = `❌ Connection Failed! Server is offline, port is blocked, or WebSocket is not reachable at ${url}.`;
+            cleanUp();
+          };
+        } catch (err) {
+          testResult.className = "test-result error";
+          testResult.textContent = `❌ WebSocket Initialization Error: ${err.message || err}`;
+          cleanUp();
+        }
+      } else {
+        // HTTP protocol
+        const url = `http://${host}:${port}${formattedPath}`;
+        
+        timeoutId = setTimeout(() => {
+          testResult.className = "test-result error";
+          testResult.textContent = `❌ HTTP Connection Timeout at ${url}`;
+          cleanUp();
+        }, 5000);
+
+        fetch(url, { method: "GET", mode: "cors" })
+          .then(res => {
+            testResult.className = "test-result success";
+            testResult.textContent = `✅ Connection Success! HTTP server returned status ${res.status}.`;
+            cleanUp();
+          })
+          .catch(err => {
+            testResult.className = "test-result error";
+            testResult.textContent = `❌ HTTP Connection Failed: ${err.message || "Failed to fetch. Server might be offline or CORS blocked."}`;
+            cleanUp();
+          });
       }
     });
   }
