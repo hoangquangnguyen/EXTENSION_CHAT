@@ -53,5 +53,5 @@ development_status:
   1-2-implement-content-script-for-real-time-comment-extraction: review
   1-3-implement-offscreen-document-for-local-server-forwarding: review
   1-4-add-disconnection-buffering-and-connection-status-monitoring: review
-  1-5-create-popup-ui-dashboard-with-settings-and-rolling-comment-preview: backlog
+  1-5-create-popup-ui-dashboard-with-settings-and-rolling-comment-preview: review
   epic-1-retrospective: optional
