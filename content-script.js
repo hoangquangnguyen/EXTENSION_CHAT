@@ -70,11 +70,9 @@
       }
 
       const payload = {
-        platform: "tiktok",
         nickname,
         username,
         message,
-        profilePic,
         timestamp: Date.now()
       };
 
