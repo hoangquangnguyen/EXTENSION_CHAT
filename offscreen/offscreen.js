@@ -5,7 +5,7 @@ console.log("TikTok Chat Extension: Offscreen Script loaded.");
 
 let socket = null;
 let connectionSettings = {
-  host: "localhost",
+  host: "127.0.0.1",
   port: "6161",
   protocol: "ws",
   path: "/"
@@ -25,12 +25,6 @@ let isFlushing = false;
 // Send connection status updates to other extension contexts (e.g. background, popup)
 function sendConnectionStatus(status) {
   connectionStatus = status;
-  // Update storage so that the popup can immediately read current state on open
-  if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-    chrome.storage.local.set({ connection_status: status }, () => {
-      const err = chrome.runtime.lastError;
-    });
-  }
   if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
     chrome.runtime.sendMessage({
       type: "CONNECTION_STATUS",
@@ -44,8 +38,13 @@ function sendConnectionStatus(status) {
 
 // Save connection error message to local storage for UI display
 function saveConnectionError(errMessage) {
-  if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-    chrome.storage.local.set({ last_connection_error: errMessage });
+  if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
+    chrome.runtime.sendMessage({
+      type: "CONNECTION_ERROR",
+      error: errMessage
+    }, () => {
+      const err = chrome.runtime.lastError;
+    });
   }
 }
 
@@ -194,6 +193,7 @@ function checkHttpConnection() {
 
 // Initialize active connections depending on monitoring state and protocol
 function initializeConnection() {
+  console.log("Offscreen initializeConnection called. monitoringActive:", monitoringActive, "connectionSettings:", connectionSettings);
   if (monitoringActive) {
     saveConnectionError(""); // clear when starting a new session
     if (connectionSettings.protocol === "ws") {
@@ -292,13 +292,13 @@ function sendViaWebSocket(payload) {
   if (socket && socket.readyState === WebSocket.OPEN) {
     try {
       socket.send(JSON.stringify(payload));
-      console.log("Offscreen: Sent comment via WebSocket:", payload.message);
+      console.log("Offscreen: Sent comment via WebSocket:", payload);
     } catch (error) {
       console.error("Offscreen: Error sending via WebSocket:", error);
       queueComment(payload);
     }
   } else {
-    console.warn("Offscreen: WebSocket not open. Comment buffered.");
+    console.warn("Offscreen: WebSocket not open. readyState:", socket ? socket.readyState : "null", "Comment buffered.");
     queueComment(payload);
   }
 }
@@ -345,7 +345,7 @@ function sendViaHttpPost(payload) {
 
 // Handles incoming comments from background relay
 function handleChatMessage(payload) {
-  if (!monitoringActive) return;
+  console.log("Offscreen handleChatMessage received payload:", payload);
 
   if (connectionSettings.protocol === "ws") {
     sendViaWebSocket(payload);
@@ -354,49 +354,32 @@ function handleChatMessage(payload) {
   }
 }
 
-// Fetch configuration from local storage on start
-if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-  chrome.storage.local.get(["connection_settings", "monitoring_active"], (result) => {
-    if (result.connection_settings) {
-      connectionSettings = { ...connectionSettings, ...result.connection_settings };
-    }
-    monitoringActive = !!result.monitoring_active;
-    initializeConnection();
-  });
-
-  // Watch storage changes for dynamic configuration updates
-  chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName === "local") {
-      let settingsChanged = false;
-
-      if (changes.connection_settings) {
-        connectionSettings = { ...connectionSettings, ...changes.connection_settings.newValue };
-        settingsChanged = true;
-      }
-
-      if (changes.monitoring_active) {
-        monitoringActive = !!changes.monitoring_active.newValue;
-        settingsChanged = true;
-      }
-
-      if (settingsChanged) {
-        console.log("Offscreen: Settings or state changed. Re-initializing...");
-        initializeConnection();
-      }
-    }
-  });
-} else {
-  console.warn("chrome.storage.local is not available. Offscreen document is loaded outside of extension context.");
+// Request configuration from Background Script on startup
+function requestSettingsFromBackground() {
+  console.log("Offscreen: Requesting settings from background script...");
+  if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
+    chrome.runtime.sendMessage({ type: "OFFSCREEN_LOADED" }, () => {
+      const err = chrome.runtime.lastError;
+    });
+  }
 }
 
-// Listener for relayed messages from Background Service Worker
+requestSettingsFromBackground();
+
+// Listener for messages
 if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessage) {
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === "CHAT_MESSAGE") {
-      // Only process comments relayed by the background Service Worker (where sender.tab is undefined)
-      if (!sender.tab) {
-        handleChatMessage(message.payload);
+      handleChatMessage(message.payload);
+    } else if (message.type === "INIT_OFFSCREEN" || message.type === "UPDATE_OFFSCREEN") {
+      console.log(`Offscreen: Received configuration type ${message.type}:`, message);
+      if (message.connectionSettings) {
+        connectionSettings = { ...connectionSettings, ...message.connectionSettings };
       }
+      if (message.monitoringActive !== undefined) {
+        monitoringActive = !!message.monitoringActive;
+      }
+      initializeConnection();
     }
   });
 }

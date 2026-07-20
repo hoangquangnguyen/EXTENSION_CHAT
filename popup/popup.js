@@ -3,6 +3,15 @@
 
 document.addEventListener("DOMContentLoaded", async () => {
   // DOM References
+  const DEFAULT_SELECTORS = {
+    chatContainer: "[data-e2e=\"live-chat-container\"], .webcast-chatroom___list, .webcast-chatroom___message-list, [data-testid='chatroom-message-list']",
+    commentNode: "[data-e2e=\"chat-message\"], .webcast-chatroom___item, .webcast-chatroom___message-item, [data-testid='chatroom-message-item']",
+    nickname: "[data-e2e=\"message-owner-name\"], .webcast-chatroom___nickname, .webcast-chatroom___author-name, .nickname",
+    username: "[data-e2e=\"message-owner-name\"], .webcast-chatroom___username, .webcast-chatroom___author-handle, .username",
+    message: "div:nth-child(2) > div:nth-child(2), .webcast-chatroom___content, .webcast-chatroom___message-text, .content",
+    profilePic: "div:first-child img, .webcast-chatroom___avatar img, .avatar img"
+  };
+
   const monitoringToggle = document.getElementById("monitoring-toggle");
   const statusIndicator = document.getElementById("status-indicator");
   const statusText = document.getElementById("status-text");
@@ -16,6 +25,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   const btnSelectors = document.getElementById("btn-selectors");
   const panelSelectors = document.getElementById("panel-selectors");
   const btnSave = document.getElementById("btn-save");
+
+  // Diagnostics DOM References
+  const btnDiagnostics = document.getElementById("btn-diagnostics");
+  const panelDiagnostics = document.getElementById("panel-diagnostics");
+  const diagTabValid = document.getElementById("diag-tab-valid");
+  const diagOffscreenRunning = document.getElementById("diag-offscreen-running");
+  const diagTargetUrl = document.getElementById("diag-target-url");
+  const diagMonitoringState = document.getElementById("diag-monitoring-state");
+  const diagSocketState = document.getElementById("diag-socket-state");
   
   const commentFeed = document.getElementById("comment-feed");
   const commentCount = document.getElementById("comment-count");
@@ -47,6 +65,66 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   setupAccordion(btnConfig, panelConfig);
   setupAccordion(btnSelectors, panelSelectors);
+  setupAccordion(btnDiagnostics, panelDiagnostics);
+
+  // Update system diagnostics values
+  function updateDiagnosticsUI() {
+    if (!diagTabValid || !diagOffscreenRunning) return;
+
+    // 1. Tab Valid
+    if (isValidTab) {
+      diagTabValid.textContent = "Yes (TikTok Live Stream)";
+      diagTabValid.className = "diag-value success";
+    } else {
+      diagTabValid.textContent = "No (Navigate to TikTok Live page)";
+      diagTabValid.className = "diag-value error";
+    }
+
+    // 2. Offscreen running
+    let offscreenRunning = false;
+    if (chrome.extension && typeof chrome.extension.getViews === "function") {
+      const views = chrome.extension.getViews();
+      for (const view of views) {
+        if (view.location.pathname.includes("offscreen.html")) {
+          offscreenRunning = true;
+          break;
+        }
+      }
+    }
+    if (offscreenRunning) {
+      diagOffscreenRunning.textContent = "Yes (Active)";
+      diagOffscreenRunning.className = "diag-value success";
+    } else {
+      diagOffscreenRunning.textContent = "No (Not Started)";
+      diagOffscreenRunning.className = "diag-value error";
+    }
+
+    // 3. Storage connection details
+    chrome.storage.local.get(["connection_settings", "monitoring_active", "connection_status", "last_connection_error"], (res) => {
+      const settings = res.connection_settings || { host: "127.0.0.1", port: "6161", protocol: "ws", path: "/" };
+      const monitoring = !!res.monitoring_active;
+      const status = res.connection_status || "disconnected";
+      const errorMsg = res.last_connection_error || "";
+
+      const formattedPath = settings.path.startsWith("/") ? settings.path : `/${settings.path}`;
+      diagTargetUrl.textContent = `${settings.protocol}://${settings.host}:${settings.port}${formattedPath}`;
+      diagTargetUrl.className = "diag-value";
+
+      diagMonitoringState.textContent = monitoring ? "Active (On)" : "Inactive (Off)";
+      diagMonitoringState.className = monitoring ? "diag-value success" : "diag-value error";
+
+      if (status === "connected") {
+        diagSocketState.textContent = "Connected (OK)";
+        diagSocketState.className = "diag-value success";
+      } else if (status === "connecting") {
+        diagSocketState.textContent = "Connecting...";
+        diagSocketState.className = "diag-value warning";
+      } else {
+        diagSocketState.textContent = errorMsg ? `Error (${errorMsg})` : "Disconnected";
+        diagSocketState.className = "diag-value error";
+      }
+    });
+  }
 
   // Validate active tab URL
   function validateActiveTab() {
@@ -202,7 +280,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Load config & prefill UI form
   if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
     chrome.storage.local.get(["connection_settings", "selectors", "monitoring_active", "connection_status", "last_connection_error"], (res) => {
-      const settings = res.connection_settings || { host: "localhost", port: "6161", protocol: "ws", path: "/" };
+      const settings = res.connection_settings || { host: "127.0.0.1", port: "6161", protocol: "ws", path: "/" };
       const selectors = res.selectors || {};
       const active = isValidTab ? !!res.monitoring_active : false;
       const status = res.connection_status || "disconnected";
@@ -210,17 +288,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       // Fill connection inputs
       inputProtocol.value = settings.protocol || "ws";
-      inputHost.value = settings.host || "localhost";
+      inputHost.value = settings.host || "127.0.0.1";
       inputPort.value = settings.port || "6161";
       inputPath.value = settings.path || "/";
 
       // Fill selector inputs
-      selContainer.value = selectors.chatContainer || "";
-      selNode.value = selectors.commentNode || "";
-      selNickname.value = selectors.nickname || "";
-      selUsername.value = selectors.username || "";
-      selMessage.value = selectors.message || "";
-      selProfile.value = selectors.profilePic || "";
+      selContainer.value = selectors.chatContainer || DEFAULT_SELECTORS.chatContainer;
+      selNode.value = selectors.commentNode || DEFAULT_SELECTORS.commentNode;
+      selNickname.value = selectors.nickname || DEFAULT_SELECTORS.nickname;
+      selUsername.value = selectors.username || DEFAULT_SELECTORS.username;
+      selMessage.value = selectors.message || DEFAULT_SELECTORS.message;
+      selProfile.value = selectors.profilePic || DEFAULT_SELECTORS.profilePic;
 
       // Sync toggles
       if (isValidTab) {
@@ -228,15 +306,17 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       
       updateStatusUI(active, status, errorMsg);
+      updateDiagnosticsUI();
     });
 
     // Listen to Storage changes dynamically
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === "local") {
-        if (changes.connection_status || changes.monitoring_active || changes.last_connection_error) {
+        if (changes.connection_status || changes.monitoring_active || changes.last_connection_error || changes.connection_settings) {
           chrome.storage.local.get(["monitoring_active", "connection_status", "last_connection_error"], (res) => {
             const active = isValidTab ? !!res.monitoring_active : false;
             updateStatusUI(active, res.connection_status || "disconnected", res.last_connection_error || "");
+            updateDiagnosticsUI();
           });
         }
       }
@@ -248,11 +328,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         const active = isValidTab ? monitoringToggle.checked : false;
         chrome.storage.local.get(["last_connection_error"], (res) => {
           updateStatusUI(active, message.status, res.last_connection_error || "");
+          updateDiagnosticsUI();
         });
       } else if (message.type === "CHAT_MESSAGE") {
-        // Only render comments if monitoring is active and message is relayed (sender.tab is undefined)
-        if (monitoringToggle.checked && isValidTab && !sender.tab) {
+        console.log("Popup received CHAT_MESSAGE:", message.payload);
+        if (monitoringToggle.checked && isValidTab) {
+          console.log("Popup appending comment to feed.");
           appendComment(message.payload);
+        } else {
+          console.warn("Popup did not append comment. monitoringToggle:", monitoringToggle.checked, "isValidTab:", isValidTab);
         }
       }
     });
@@ -262,7 +346,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (btnTestConn && testResult) {
     btnTestConn.addEventListener("click", () => {
       const protocol = inputProtocol.value.trim();
-      const host = inputHost.value.trim() || "localhost";
+      const host = inputHost.value.trim() || "127.0.0.1";
       const port = inputPort.value.trim() || "6161";
       const path = inputPath.value.trim();
       const formattedPath = path.startsWith("/") ? path : `/${path}`;
@@ -349,12 +433,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     const selectors = {
-      chatContainer: selContainer.value.trim(),
-      commentNode: selNode.value.trim(),
-      nickname: selNickname.value.trim(),
-      username: selUsername.value.trim(),
-      message: selMessage.value.trim(),
-      profilePic: selProfile.value.trim()
+      chatContainer: selContainer.value.trim() || DEFAULT_SELECTORS.chatContainer,
+      commentNode: selNode.value.trim() || DEFAULT_SELECTORS.commentNode,
+      nickname: selNickname.value.trim() || DEFAULT_SELECTORS.nickname,
+      username: selUsername.value.trim() || DEFAULT_SELECTORS.username,
+      message: selMessage.value.trim() || DEFAULT_SELECTORS.message,
+      profilePic: selProfile.value.trim() || DEFAULT_SELECTORS.profilePic
     };
 
     if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {

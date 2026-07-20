@@ -9,12 +9,12 @@
   window.hasTikTokChatContentScriptInjected = true;
 
   const DEFAULT_SELECTORS = {
-    chatContainer: ".webcast-chatroom___list, .webcast-chatroom___message-list, [data-testid='chatroom-message-list']",
-    commentNode: ".webcast-chatroom___item, .webcast-chatroom___message-item, [data-testid='chatroom-message-item']",
-    nickname: ".webcast-chatroom___nickname, .webcast-chatroom___author-name, .nickname",
-    username: ".webcast-chatroom___username, .webcast-chatroom___author-handle, .username",
-    message: ".webcast-chatroom___content, .webcast-chatroom___message-text, .content",
-    profilePic: ".webcast-chatroom___avatar img, .avatar img"
+    chatContainer: "[data-e2e=\"live-chat-container\"], .webcast-chatroom___list, .webcast-chatroom___message-list, [data-testid='chatroom-message-list']",
+    commentNode: "[data-e2e=\"chat-message\"], .webcast-chatroom___item, .webcast-chatroom___message-item, [data-testid='chatroom-message-item']",
+    nickname: "[data-e2e=\"message-owner-name\"], .webcast-chatroom___nickname, .webcast-chatroom___author-name, .nickname",
+    username: "[data-e2e=\"message-owner-name\"], .webcast-chatroom___username, .webcast-chatroom___author-handle, .username",
+    message: "div:nth-child(2) > div:nth-child(2), .webcast-chatroom___content, .webcast-chatroom___message-text, .content",
+    profilePic: "div:first-child img, .webcast-chatroom___avatar img, .avatar img"
   };
 
   let activeSelectors = { ...DEFAULT_SELECTORS };
@@ -56,6 +56,13 @@
       const username = usernameEl ? usernameEl.textContent.trim() : "";
       const message = messageEl ? messageEl.textContent.trim() : "";
 
+      console.log("TikTok Chat Extension: Parsed elements:", {
+        nickname,
+        username,
+        message,
+        profilePicEl: !!profilePicEl
+      });
+
       let profilePic = "";
       if (profilePicEl) {
         profilePic = profilePicEl.getAttribute("src") || 
@@ -66,6 +73,7 @@
 
       // Avoid processing system notices or empty node structures
       if (!nickname && !username && !message) {
+        console.log("TikTok Chat Extension: Comment skipped (all fields empty).");
         return;
       }
 
@@ -76,6 +84,8 @@
         timestamp: Date.now()
       };
 
+      console.log("TikTok Chat Extension: Sending CHAT_MESSAGE to extension runtime:", payload);
+
       // Dispatch chat message frame to extension background
       chrome.runtime.sendMessage({
         type: "CHAT_MESSAGE",
@@ -83,6 +93,11 @@
       }, () => {
         // Catch and ignore expected error when background script goes inactive
         const err = chrome.runtime.lastError;
+        if (err) {
+          console.warn("TikTok Chat Extension: error during sendMessage (optional):", err);
+        } else {
+          console.log("TikTok Chat Extension: Message successfully dispatched to runtime.");
+        }
       });
 
     } catch (error) {
@@ -187,7 +202,13 @@
   function updateState(monitoring, selectors) {
     monitoringActive = !!monitoring;
     if (selectors) {
-      activeSelectors = { ...DEFAULT_SELECTORS, ...selectors };
+      const cleanedSelectors = {};
+      for (const key in selectors) {
+        if (selectors[key] && selectors[key].trim() !== "") {
+          cleanedSelectors[key] = selectors[key];
+        }
+      }
+      activeSelectors = { ...DEFAULT_SELECTORS, ...cleanedSelectors };
     }
 
     if (monitoringActive) {

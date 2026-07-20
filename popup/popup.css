@@ -598,3 +598,34 @@ input[type="text"]:focus, select:focus {
   border: 1px solid rgba(245, 158, 11, 0.4);
   color: #fde68a;
 }
+
+/* Diagnostics styling */
+.diag-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 4px;
+}
+.diag-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  border-bottom: 1px dashed rgba(255,255,255,0.05);
+  padding-bottom: 4px;
+}
+.diag-label {
+  color: var(--text-muted);
+}
+.diag-value {
+  font-weight: 600;
+}
+.diag-value.success {
+  color: var(--status-connected);
+}
+.diag-value.error {
+  color: var(--accent-pink);
+}
+.diag-value.warning {
+  color: var(--status-connecting);
+}
+

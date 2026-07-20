@@ -15,7 +15,7 @@ chrome.runtime.onInstalled.addListener(async () => {
     const storageData = await chrome.storage.local.get(["connection_settings"]);
     if (!storageData.connection_settings) {
       const defaultSettings = {
-        host: "localhost",
+        host: "127.0.0.1",
         port: "6161",
         protocol: "ws",
         path: "/"
@@ -83,28 +83,53 @@ async function manageOffscreenDocument(active) {
   }
 }
 
-// Watch for changes to monitoring_active to toggle offscreen document lifecycle
+// Watch storage changes to toggle offscreen document and broadcast config updates
 chrome.storage.onChanged.addListener(async (changes, areaName) => {
-  if (areaName === "local" && changes.monitoring_active) {
-    const active = !!changes.monitoring_active.newValue;
-    console.log(`monitoring_active changed in background: ${active}`);
-    await manageOffscreenDocument(active);
+  if (areaName === "local") {
+    if (changes.monitoring_active) {
+      const active = !!changes.monitoring_active.newValue;
+      console.log(`monitoring_active changed in background: ${active}`);
+      await manageOffscreenDocument(active);
+    }
+
+    // Broadcast config changes to offscreen if open
+    if (changes.connection_settings || changes.monitoring_active) {
+      chrome.storage.local.get(["connection_settings", "monitoring_active"], (res) => {
+        const settings = res.connection_settings || { host: "127.0.0.1", port: "6161", protocol: "ws", path: "/" };
+        const active = !!res.monitoring_active;
+        chrome.runtime.sendMessage({
+          type: "UPDATE_OFFSCREEN",
+          connectionSettings: settings,
+          monitoringActive: active
+        }, () => {
+          const err = chrome.runtime.lastError; // ignore error if offscreen is closed
+        });
+      });
+    }
   }
 });
 
-// Listen for runtime messages (relay comments to the offscreen document)
+// Listen for runtime messages
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === "CHAT_MESSAGE") {
-    // Only relay messages from other contexts (like Content Script) to prevent loops
-    // and broadcast them to other extension pages (Popup and Offscreen Document).
-    if (sender.tab) {
-      chrome.runtime.sendMessage(message, () => {
-        // Handle runtime error gracefully if receiver isn't listening (e.g. Popup is closed)
-        const error = chrome.runtime.lastError;
-      });
-    }
-  } else if (message.type === "CONNECTION_STATUS") {
+  if (message.type === "CONNECTION_STATUS") {
     console.log(`Connection status update received in background: ${message.status}`);
+    chrome.storage.local.set({ connection_status: message.status });
+  } else if (message.type === "CONNECTION_ERROR") {
+    console.log(`Connection error update received in background: ${message.error}`);
+    chrome.storage.local.set({ last_connection_error: message.error });
+  } else if (message.type === "OFFSCREEN_LOADED") {
+    console.log("Background: Offscreen document loaded. Syncing settings...");
+    chrome.storage.local.get(["connection_settings", "monitoring_active"], (res) => {
+      const settings = res.connection_settings || { host: "127.0.0.1", port: "6161", protocol: "ws", path: "/" };
+      const active = !!res.monitoring_active;
+      chrome.runtime.sendMessage({
+        type: "INIT_OFFSCREEN",
+        connectionSettings: settings,
+        monitoringActive: active
+      }, () => {
+        const err = chrome.runtime.lastError;
+      });
+    });
   }
 });
 
