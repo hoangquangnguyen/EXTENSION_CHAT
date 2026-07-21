@@ -53,8 +53,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   const selMessage = document.getElementById("sel-message");
   const selProfile = document.getElementById("sel-profile");
 
+  // Selector Presets Elements
+  const selPreset = document.getElementById("sel-preset");
+  const btnImportJson = document.getElementById("btn-import-json");
+  const inputFileSelectors = document.getElementById("input-file-selectors");
+  const presetInfoBanner = document.getElementById("preset-info-banner");
+
   // In-memory array for rolling preview (maximum 20 comments)
   const activeComments = [];
+
+  let isValidTab = false;
+  let loadedPresets = {};
+  let activePresetKey = "tiktok";
 
   // Toggle Accordion Panel helper
   function setupAccordion(trigger, content) {
@@ -126,7 +136,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // Validate active tab URL
+  // Validate active tab URL (accepts any web page or local file)
   function validateActiveTab() {
     return new Promise((resolve) => {
       if (typeof chrome === "undefined" || !chrome.tabs || !chrome.tabs.query) {
@@ -144,9 +154,92 @@ document.addEventListener("DOMContentLoaded", async () => {
           resolve(false);
           return;
         }
-        // Match patterns: *://*.tiktok.com/*/live* or *://*.tiktok.com/live*
-        const tiktokLiveRegex = /^https?:\/\/(?:[a-z0-9-]+\.)?tiktok\.com\/(?:[^/]+\/live|live)/i;
-        resolve(tiktokLiveRegex.test(url));
+
+        // Match general web pages (http/https) and local files
+        const generalRegex = /^(https?|file):\/\//i;
+        resolve(generalRegex.test(url));
+      });
+    });
+  }
+
+  // Update warnings and active toggles when tab changes
+  function updateTabWarningUI(isValid) {
+    if (isValid) {
+      warningBanner.classList.add("hidden");
+      monitoringToggle.disabled = false;
+    } else {
+      warningBanner.classList.remove("hidden");
+      monitoringToggle.disabled = true;
+      monitoringToggle.checked = false;
+      if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.set({ monitoring_active: false });
+      }
+    }
+  }
+
+  // Show status indicator banner inside the selector accordion
+  function showPresetBanner(message, isError = false) {
+    if (!presetInfoBanner) return;
+    presetInfoBanner.textContent = message;
+    presetInfoBanner.className = isError ? "test-result error" : "test-result success";
+    presetInfoBanner.classList.remove("hidden");
+    setTimeout(() => {
+      presetInfoBanner.classList.add("hidden");
+    }, 4000);
+  }
+
+  // Dynamically populates the preset dropdown options
+  function populatePresetDropdown(presets, selectedKey) {
+    if (!selPreset) return;
+    selPreset.innerHTML = "";
+    for (const key in presets) {
+      const option = document.createElement("option");
+      option.value = key;
+      option.textContent = presets[key].name || key;
+      selPreset.appendChild(option);
+    }
+    // Add Custom option at the end
+    const customOption = document.createElement("option");
+    customOption.value = "custom";
+    customOption.textContent = "Custom / Uploaded JSON";
+    selPreset.appendChild(customOption);
+
+    // Set selected value explicitly
+    selPreset.value = selectedKey;
+  }
+
+  // Loads presets list and populates UI options
+  function loadPresetsAndInit() {
+    return new Promise((resolve) => {
+      if (typeof chrome === "undefined" || !chrome.storage || !chrome.storage.local) {
+        resolve();
+        return;
+      }
+      chrome.storage.local.get(["selector_presets", "active_preset"], async (res) => {
+        let presets = res.selector_presets;
+        let activeKey = res.active_preset;
+
+        if (!presets) {
+          try {
+            const url = chrome.runtime.getURL("selectors.json");
+            const response = await fetch(url);
+            const data = await response.json();
+            presets = data.presets;
+            activeKey = activeKey || data.default;
+            await chrome.storage.local.set({ 
+              selector_presets: presets,
+              active_preset: activeKey 
+            });
+          } catch (e) {
+            console.error("Failed to load selectors.json", e);
+            presets = {};
+          }
+        }
+
+        loadedPresets = presets || {};
+        activePresetKey = activeKey || "tiktok";
+        populatePresetDropdown(loadedPresets, activePresetKey);
+        resolve();
       });
     });
   }
@@ -266,25 +359,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     commentFeed.scrollTop = commentFeed.scrollHeight;
   }
 
-  // Check tab URL validation first
-  const isValidTab = await validateActiveTab();
-  if (!isValidTab) {
-    warningBanner.classList.remove("hidden");
-    monitoringToggle.disabled = true;
-    monitoringToggle.checked = false;
-    if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.set({ monitoring_active: false });
-    }
-  }
-
   // Load config & prefill UI form
   if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-    chrome.storage.local.get(["connection_settings", "selectors", "monitoring_active", "connection_status", "last_connection_error"], (res) => {
+    // Load presets first
+    await loadPresetsAndInit();
+
+    // Validate active tab URL
+    isValidTab = await validateActiveTab();
+    updateTabWarningUI(isValidTab);
+
+    chrome.storage.local.get(["connection_settings", "selectors", "monitoring_active", "connection_status", "last_connection_error", "active_preset"], (res) => {
       const settings = res.connection_settings || { host: "127.0.0.1", port: "6161", protocol: "ws", path: "/" };
       const selectors = res.selectors || {};
       const active = isValidTab ? !!res.monitoring_active : false;
       const status = res.connection_status || "disconnected";
       const errorMsg = res.last_connection_error || "";
+      const activePreset = res.active_preset || activePresetKey || "tiktok";
+      
+      const presetSelectors = (loadedPresets[activePreset] && loadedPresets[activePreset].selectors) || DEFAULT_SELECTORS;
 
       // Fill connection inputs
       inputProtocol.value = settings.protocol || "ws";
@@ -293,12 +385,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       inputPath.value = settings.path || "/";
 
       // Fill selector inputs
-      selContainer.value = selectors.chatContainer || DEFAULT_SELECTORS.chatContainer;
-      selNode.value = selectors.commentNode || DEFAULT_SELECTORS.commentNode;
-      selNickname.value = selectors.nickname || DEFAULT_SELECTORS.nickname;
-      selUsername.value = selectors.username || DEFAULT_SELECTORS.username;
-      selMessage.value = selectors.message || DEFAULT_SELECTORS.message;
-      selProfile.value = selectors.profilePic || DEFAULT_SELECTORS.profilePic;
+      selContainer.value = selectors.chatContainer || presetSelectors.chatContainer;
+      selNode.value = selectors.commentNode || presetSelectors.commentNode;
+      selNickname.value = selectors.nickname || presetSelectors.nickname;
+      selUsername.value = selectors.username || presetSelectors.username;
+      selMessage.value = selectors.message || presetSelectors.message;
+      selProfile.value = selectors.profilePic || presetSelectors.profilePic;
+
+      // Sync preset dropdown select
+      if (selPreset) {
+        selPreset.value = activePreset;
+        activePresetKey = activePreset;
+      }
 
       // Sync toggles
       if (isValidTab) {
@@ -423,6 +521,135 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  // Preset selector dropdown change handler
+  if (selPreset) {
+    selPreset.addEventListener("change", async (e) => {
+      const key = e.target.value;
+      activePresetKey = key;
+      
+      if (key !== "custom" && loadedPresets[key]) {
+        const selectors = loadedPresets[key].selectors || {};
+        selContainer.value = selectors.chatContainer || "";
+        selNode.value = selectors.commentNode || "";
+        selNickname.value = selectors.nickname || "";
+        selUsername.value = selectors.username || "";
+        selMessage.value = selectors.message || "";
+        selProfile.value = selectors.profilePic || "";
+        
+        // Auto-save preset and selectors to local storage instantly
+        if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+          chrome.storage.local.set({
+            selectors: selectors,
+            active_preset: activePresetKey
+          });
+        }
+        
+        showPresetBanner(`Loaded preset: ${loadedPresets[key].name || key}`);
+      } else if (key === "custom") {
+        // Just update active preset to custom in storage
+        if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+          chrome.storage.local.set({
+            active_preset: "custom"
+          });
+        }
+      }
+      
+      // Re-validate the active tab based on new preset rules
+      isValidTab = await validateActiveTab();
+      updateTabWarningUI(isValidTab);
+      updateDiagnosticsUI();
+    });
+  }
+
+  // Load JSON file input triggers
+  if (btnImportJson && inputFileSelectors) {
+    btnImportJson.addEventListener("click", () => {
+      inputFileSelectors.click();
+    });
+
+    inputFileSelectors.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const json = JSON.parse(event.target.result);
+          
+          // Handle flat structure
+          if (json.chatContainer || json.commentNode || json.nickname || json.username || json.message || json.profilePic) {
+            const selectors = {
+              chatContainer: json.chatContainer || "",
+              commentNode: json.commentNode || "",
+              nickname: json.nickname || "",
+              username: json.username || "",
+              message: json.message || "",
+              profilePic: json.profilePic || ""
+            };
+            selContainer.value = selectors.chatContainer;
+            selNode.value = selectors.commentNode;
+            selNickname.value = selectors.nickname;
+            selUsername.value = selectors.username;
+            selMessage.value = selectors.message;
+            selProfile.value = selectors.profilePic;
+            
+            activePresetKey = "custom";
+            selPreset.value = "custom";
+            
+            // Auto-save custom selectors instantly
+            if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+              chrome.storage.local.set({
+                selectors: selectors,
+                active_preset: "custom"
+              });
+            }
+            showPresetBanner("✅ Custom selectors loaded from JSON!");
+          } 
+          // Handle presets structure
+          else if (json.presets) {
+            loadedPresets = { ...loadedPresets, ...json.presets };
+            const defaultKey = json.default || Object.keys(json.presets)[0];
+            activePresetKey = defaultKey;
+            
+            // Re-populate dropdown
+            populatePresetDropdown(loadedPresets, activePresetKey);
+            
+            // Fill inputs for new active key
+            const activeSelectors = (loadedPresets[activePresetKey] && loadedPresets[activePresetKey].selectors) || {};
+            selContainer.value = activeSelectors.chatContainer || "";
+            selNode.value = activeSelectors.commentNode || "";
+            selNickname.value = activeSelectors.nickname || "";
+            selUsername.value = activeSelectors.username || "";
+            selMessage.value = activeSelectors.message || "";
+            selProfile.value = activeSelectors.profilePic || "";
+
+            // Auto-save imported presets and the new active configuration instantly
+            if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+              await chrome.storage.local.set({ 
+                selector_presets: loadedPresets,
+                selectors: activeSelectors,
+                active_preset: activePresetKey
+              });
+            }
+            showPresetBanner("✅ Presets successfully imported from JSON!");
+          } else {
+            showPresetBanner("❌ Invalid JSON format: missing selector keys", true);
+          }
+          
+          // Trigger tab validation check based on new preset
+          isValidTab = await validateActiveTab();
+          updateTabWarningUI(isValidTab);
+          updateDiagnosticsUI();
+        } catch (err) {
+          showPresetBanner("❌ Failed to parse JSON: " + err.message, true);
+        }
+      };
+      reader.readAsText(file);
+      // Reset input value to allow uploading the same file again
+      inputFileSelectors.value = "";
+    });
+  }
+
   // Save Config handler
   btnSave.addEventListener("click", () => {
     const connectionSettings = {
@@ -444,7 +671,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
       chrome.storage.local.set({
         connection_settings: connectionSettings,
-        selectors: selectors
+        selectors: selectors,
+        active_preset: activePresetKey
       }, () => {
         // Simple micro-animation on save button
         const originalText = btnSave.textContent;

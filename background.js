@@ -2,14 +2,20 @@
 
 // Dynamic storage initialization for default selectors and connection settings
 chrome.runtime.onInstalled.addListener(async () => {
-  console.log("TikTok Chat Chrome Extension installed.");
+  console.log("LIVE Relayer Extension installed.");
   try {
-    // 1. Initialize Default Selectors
+    // 1. Initialize Default Selectors and Presets
     const url = chrome.runtime.getURL("selectors.json");
     const response = await fetch(url);
-    const selectors = await response.json();
-    await chrome.storage.local.set({ selectors });
-    console.log("Default selectors successfully initialized in storage:", selectors);
+    const data = await response.json();
+    
+    // Save presets and default active selectors
+    await chrome.storage.local.set({ 
+      selector_presets: data.presets,
+      selectors: data.presets[data.default].selectors,
+      active_preset: data.default
+    });
+    console.log("Default selectors and presets successfully initialized in storage:", data);
     
     // 2. Initialize Default Connection Settings
     const storageData = await chrome.storage.local.get(["connection_settings"]);

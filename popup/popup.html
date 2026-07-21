@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TikTok Live Chat Relayer</title>
+  <title>LIVE Chat Relayer</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
@@ -12,7 +12,7 @@
     <header class="header">
       <div class="logo-area">
         <span class="icon">⚡</span>
-        <span class="title">TikTok Relayer</span>
+        <span class="title">LIVE Relayer</span>
       </div>
       <div class="status-indicator disconnected" id="status-indicator">
         <span class="status-dot"></span>
@@ -22,7 +22,7 @@
 
     <!-- Warning banner -->
     <div id="warning-banner" class="warning-banner hidden">
-      ⚠️ Please navigate to a TikTok Live stream page to start monitoring.
+      ⚠️ Please navigate to a supported Live stream page to start monitoring.
     </div>
 
     <!-- Error message banner -->
@@ -81,6 +81,22 @@
         <span class="arrow">▼</span>
       </button>
       <div class="accordion-content" id="panel-selectors">
+        <div class="form-group row" style="align-items: flex-end; gap: 8px; margin-bottom: 4px;">
+          <div class="form-col" style="flex: 1.5;">
+            <label for="sel-preset">Platform Preset</label>
+            <select id="sel-preset">
+              <!-- Options populated dynamically -->
+            </select>
+          </div>
+          <div class="form-col" style="flex: 1;">
+            <button type="button" id="btn-import-json" class="btn-secondary" style="height: 28px; font-size: 0.7rem; padding: 0 4px; display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%;">
+              📂 Load JSON
+            </button>
+            <input type="file" id="input-file-selectors" accept=".json" style="display: none;">
+          </div>
+        </div>
+        <div id="preset-info-banner" class="test-result success hidden" style="font-size: 0.7rem; padding: 6px; border-radius: 4px; margin-top: 2px; text-align: center;"></div>
+        <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 4px 0; opacity: 0.5;">
         <div class="form-group">
           <label for="sel-container">Chat Container</label>
           <input type="text" id="sel-container" placeholder=".webcast-chatroom___list">

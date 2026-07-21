@@ -224,7 +224,8 @@
   chrome.storage.local.get(["monitoring_active", "selectors"], (result) => {
     const monitoring = result.monitoring_active || false;
     const selectors = result.selectors || null;
-    console.log("TikTok Chat Extension: Initializing settings. Monitoring active:", monitoring);
+
+    console.log("LIVE Relayer: Initializing settings. Monitoring active:", monitoring);
     updateState(monitoring, selectors);
   });
 
@@ -245,7 +246,7 @@
       }
 
       if (stateChanged) {
-        console.log("TikTok Chat Extension: Settings updated dynamically.");
+        console.log("LIVE Relayer: Settings updated dynamically.");
         updateState(newMonitoring, newSelectors);
       }
     }

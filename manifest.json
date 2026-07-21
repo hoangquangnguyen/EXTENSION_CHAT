@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "TikTok Chat Chrome Extension",
+  "name": "LIVE Relayer",
   "version": "1.0.0",
-  "description": "Extracts live chat comments from TikTok Live stream pages and forwards them to a local server.",
+  "description": "Extracts live chat comments from live stream pages (TikTok, Shopee, etc.) and forwards them to a local server.",
   "permissions": [
     "storage",
     "activeTab",
@@ -15,8 +15,7 @@
   "content_scripts": [
     {
       "matches": [
-        "*://*.tiktok.com/*/live*",
-        "*://*.tiktok.com/live*"
+        "<all_urls>"
       ],
       "js": ["content-script.js"]
     }
