@@ -253,6 +253,21 @@ document.addEventListener("DOMContentLoaded", async () => {
             updated = true;
           }
 
+          if (!presets.shopee_live) {
+            presets.shopee_live = {
+              name: "Shopee Live",
+              selectors: {
+                chatContainer: ".ReactVirtualized__Grid__innerScrollContainer, div[role=\"rowgroup\"]",
+                commentNode: ".comment-container_7ca29",
+                nickname: ".user-name_2fad3",
+                username: ".user-name_2fad3",
+                message: ".message-content_3bb92",
+                profilePic: ""
+              }
+            };
+            updated = true;
+          }
+
           if (updated) {
             await chrome.storage.local.set({ 
               selector_presets: presets,

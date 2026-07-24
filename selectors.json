@@ -21,6 +21,17 @@
         "message": ".shopee-live-chat-message, .message, .content, span.break-words, p.leading-relaxed, p.text-slate-200",
         "profilePic": ".shopee-live-chat-avatar img, .avatar img, img.rounded-full"
       }
+    },
+    "shopee_live": {
+      "name": "Shopee Live",
+      "selectors": {
+        "chatContainer": ".ReactVirtualized__Grid__innerScrollContainer, div[role=\"rowgroup\"]",
+        "commentNode": ".comment-container_7ca29",
+        "nickname": ".user-name_2fad3",
+        "username": ".user-name_2fad3",
+        "message": ".message-content_3bb92",
+        "profilePic": ""
+      }
     }
   },
   "default": "tiktok"
