@@ -251,4 +251,72 @@
       }
     }
   });
+
+  // Handle test scrape request from popup
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === "TEST_SCRAPE_DOM") {
+      try {
+        const selectors = message.selectors || activeSelectors;
+        const container = document.querySelector(selectors.chatContainer);
+        if (!container) {
+          sendResponse({
+            success: false,
+            error: `Chat container not found with selector: "${selectors.chatContainer}"`
+          });
+          return true;
+        }
+
+        const commentNodes = container.querySelectorAll(selectors.commentNode);
+        if (commentNodes.length === 0) {
+          sendResponse({
+            success: true,
+            commentCount: 0,
+            comments: []
+          });
+          return true;
+        }
+
+        const sampleComments = [];
+        const maxSamples = Math.min(commentNodes.length, 5);
+        for (let i = 0; i < maxSamples; i++) {
+          const node = commentNodes[i];
+          const nicknameEl = selectors.nickname ? node.querySelector(selectors.nickname) : null;
+          const usernameEl = selectors.username ? node.querySelector(selectors.username) : null;
+          const messageEl = selectors.message ? node.querySelector(selectors.message) : null;
+          const profilePicEl = selectors.profilePic ? node.querySelector(selectors.profilePic) : null;
+
+          const nickname = nicknameEl ? nicknameEl.textContent.trim() : "";
+          const username = usernameEl ? usernameEl.textContent.trim() : "";
+          const msgContent = messageEl ? messageEl.textContent.trim() : "";
+          let profilePic = "";
+          if (profilePicEl) {
+            profilePic = profilePicEl.getAttribute("src") || 
+                         profilePicEl.getAttribute("data-src") || 
+                         profilePicEl.src || "";
+            profilePic = profilePic.trim();
+          }
+
+          sampleComments.push({
+            nickname,
+            username,
+            message: msgContent,
+            profilePic
+          });
+        }
+
+        sendResponse({
+          success: true,
+          commentCount: commentNodes.length,
+          comments: sampleComments
+        });
+      } catch (err) {
+        sendResponse({
+          success: false,
+          error: err.message
+        });
+      }
+      return true; // Keep message channel open for async sendResponse
+    }
+  });
 })();
+

@@ -19,6 +19,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const errorBanner = document.getElementById("error-banner");
   const btnTestConn = document.getElementById("btn-test-conn");
   const testResult = document.getElementById("test-result");
+  const btnTestScrape = document.getElementById("btn-test-scrape");
+  const scrapeTestResult = document.getElementById("scrape-test-result");
   
   const btnConfig = document.getElementById("btn-config");
   const panelConfig = document.getElementById("panel-config");
@@ -520,6 +522,84 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
   }
+
+  // Test Scraper DOM handler
+  if (btnTestScrape && scrapeTestResult) {
+    btnTestScrape.addEventListener("click", () => {
+      const selectors = {
+        chatContainer: selContainer.value.trim(),
+        commentNode: selNode.value.trim(),
+        nickname: selNickname.value.trim(),
+        username: selUsername.value.trim(),
+        message: selMessage.value.trim(),
+        profilePic: selProfile.value.trim()
+      };
+
+      if (!selectors.chatContainer || !selectors.commentNode) {
+        scrapeTestResult.className = "test-result error";
+        scrapeTestResult.textContent = "❌ Please input both Chat Container and Comment Node selectors.";
+        scrapeTestResult.classList.remove("hidden");
+        return;
+      }
+
+      scrapeTestResult.className = "test-result testing";
+      scrapeTestResult.textContent = "🔍 Scanning page DOM using active selectors...";
+      scrapeTestResult.classList.remove("hidden");
+      btnTestScrape.disabled = true;
+
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs || tabs.length === 0) {
+          scrapeTestResult.className = "test-result error";
+          scrapeTestResult.textContent = "❌ No active tab found.";
+          btnTestScrape.disabled = false;
+          return;
+        }
+
+        const activeTab = tabs[0];
+        chrome.tabs.sendMessage(activeTab.id, {
+          type: "TEST_SCRAPE_DOM",
+          selectors: selectors
+        }, (response) => {
+          btnTestScrape.disabled = false;
+          const err = chrome.runtime.lastError;
+          if (err) {
+            scrapeTestResult.className = "test-result error";
+            scrapeTestResult.textContent = `❌ Cannot connect to page. Make sure the page is loaded and reload it if you just installed the extension.`;
+            return;
+          }
+
+          if (!response || !response.success) {
+            scrapeTestResult.className = "test-result error";
+            scrapeTestResult.textContent = `❌ Test Failed: ${response ? response.error : "No response from page script."}`;
+          } else {
+            if (response.commentCount > 0) {
+              scrapeTestResult.className = "test-result success";
+              scrapeTestResult.textContent = `✅ Success! Found container and ${response.commentCount} comment nodes.`;
+              
+              // Clear current feed preview and show test samples
+              if (commentFeed) {
+                commentFeed.innerHTML = "";
+                activeComments.length = 0;
+                
+                response.comments.forEach(c => {
+                  appendComment({
+                    nickname: `${c.nickname || "Anonymous"} [TEST]`,
+                    username: c.username,
+                    message: c.message,
+                    profilePic: c.profilePic
+                  });
+                });
+              }
+            } else {
+              scrapeTestResult.className = "test-result warning";
+              scrapeTestResult.textContent = `⚠️ Container found, but 0 comments matched selector "${selectors.commentNode}".`;
+            }
+          }
+        });
+      });
+    });
+  }
+
 
   // Preset selector dropdown change handler
   if (selPreset) {
