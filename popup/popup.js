@@ -236,6 +236,29 @@ document.addEventListener("DOMContentLoaded", async () => {
             console.error("Failed to load selectors.json", e);
             presets = {};
           }
+        } else {
+          let updated = false;
+          if (presets.shopee) {
+            presets.shopee_sh = presets.shopee;
+            presets.shopee_sh.name = "Shopee SH";
+            delete presets.shopee;
+            updated = true;
+          } else if (presets.shopee_sh && presets.shopee_sh.name === "Shopee Live") {
+            presets.shopee_sh.name = "Shopee SH";
+            updated = true;
+          }
+          
+          if (activeKey === "shopee") {
+            activeKey = "shopee_sh";
+            updated = true;
+          }
+
+          if (updated) {
+            await chrome.storage.local.set({ 
+              selector_presets: presets,
+              active_preset: activeKey
+            });
+          }
         }
 
         loadedPresets = presets || {};

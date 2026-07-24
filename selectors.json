@@ -11,8 +11,8 @@
         "profilePic": "div:first-child img, .webcast-chatroom___avatar img, .avatar img"
       }
     },
-    "shopee": {
-      "name": "Shopee Live",
+    "shopee_sh": {
+      "name": "Shopee SH",
       "selectors": {
         "chatContainer": ".shopee-live-chat-list, .chat-list, div.relative.h-full.w-full.flex-col.overflow-hidden > div.flex-1, .flex-1.overflow-y-auto.space-y-3.mb-4.pr-2, .flex-1.overflow-y-auto.space-y-3",
         "commentNode": ".shopee-live-chat-item, .chat-item, .chat-message-item, .group.flex.flex-col.p-3.rounded-2xl",
