@@ -8,7 +8,7 @@
         "nickname": "[data-e2e=\"message-owner-name\"], .webcast-chatroom___nickname, .webcast-chatroom___author-name, .nickname",
         "username": "[data-e2e=\"message-owner-name\"], .webcast-chatroom___username, .webcast-chatroom___author-handle, .username",
         "message": "div:nth-child(2) > div:nth-child(2), .webcast-chatroom___content, .webcast-chatroom___message-text, .content",
-        "profilePic": "div:first-child img, .webcast-chatroom___avatar img, .avatar img"
+        "profilePic": ""
       }
     },
     "shopee_sh": {
@@ -19,17 +19,17 @@
         "nickname": ".shopee-live-chat-nickname, .nickname, .name, span.font-bold, span.text-slate-300, .text-xs.font-bold.text-slate-300",
         "username": ".shopee-live-chat-username, .username, span.font-bold, span.text-slate-300, .text-xs.font-bold.text-slate-300",
         "message": ".shopee-live-chat-message, .message, .content, span.break-words, p.leading-relaxed, p.text-slate-200",
-        "profilePic": ".shopee-live-chat-avatar img, .avatar img, img.rounded-full"
+        "profilePic": ""
       }
     },
     "shopee_live": {
       "name": "Shopee Live",
       "selectors": {
         "chatContainer": ".ReactVirtualized__Grid__innerScrollContainer, div[role=\"rowgroup\"]",
-        "commentNode": ".comment-container_7ca29",
-        "nickname": ".user-name_2fad3",
-        "username": ".user-name_2fad3",
-        "message": ".message-content_3bb92",
+        "commentNode": "[class*=\"comment-container_\"]",
+        "nickname": "[class*=\"user-name_\"]",
+        "username": "[class*=\"user-name_\"]",
+        "message": "[class*=\"message-content_\"]",
         "profilePic": ""
       }
     }

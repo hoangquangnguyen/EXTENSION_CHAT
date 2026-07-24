@@ -71,9 +71,14 @@
         profilePic = profilePic.trim();
       }
 
-      // Avoid processing system notices or empty node structures
-      if (!nickname && !username && !message) {
-        console.log("TikTok Chat Extension: Comment skipped (all fields empty).");
+      // Avoid processing system notices (messages without nickname & username) or empty/invalid structures
+      if (!nickname && !username) {
+        console.log("TikTok Chat Extension: Comment skipped (no nickname and username, likely a system notice).");
+        return;
+      }
+
+      if (!message) {
+        console.log("TikTok Chat Extension: Comment skipped (message is empty).");
         return;
       }
 
@@ -277,8 +282,8 @@
         }
 
         const sampleComments = [];
-        const maxSamples = Math.min(commentNodes.length, 5);
-        for (let i = 0; i < maxSamples; i++) {
+        let validCommentCount = 0;
+        for (let i = 0; i < commentNodes.length; i++) {
           const node = commentNodes[i];
           const nicknameEl = selectors.nickname ? node.querySelector(selectors.nickname) : null;
           const usernameEl = selectors.username ? node.querySelector(selectors.username) : null;
@@ -287,7 +292,13 @@
 
           const nickname = nicknameEl ? nicknameEl.textContent.trim() : "";
           const username = usernameEl ? usernameEl.textContent.trim() : "";
+          
+          // Skip system notices (lack of nickname and username)
+          if (!nickname && !username) continue;
+
           const msgContent = messageEl ? messageEl.textContent.trim() : "";
+          if (!msgContent) continue;
+
           let profilePic = "";
           if (profilePicEl) {
             profilePic = profilePicEl.getAttribute("src") || 
@@ -296,17 +307,20 @@
             profilePic = profilePic.trim();
           }
 
-          sampleComments.push({
-            nickname,
-            username,
-            message: msgContent,
-            profilePic
-          });
+          if (sampleComments.length < 5) {
+            sampleComments.push({
+              nickname,
+              username,
+              message: msgContent,
+              profilePic
+            });
+          }
+          validCommentCount++;
         }
 
         sendResponse({
           success: true,
-          commentCount: commentNodes.length,
+          commentCount: validCommentCount,
           comments: sampleComments
         });
       } catch (err) {
