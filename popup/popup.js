@@ -58,6 +58,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Selector Presets Elements
   const selPreset = document.getElementById("sel-preset");
   const btnImportJson = document.getElementById("btn-import-json");
+  const btnUpdateOnline = document.getElementById("btn-update-online");
   const inputFileSelectors = document.getElementById("input-file-selectors");
   const presetInfoBanner = document.getElementById("preset-info-banner");
 
@@ -765,6 +766,73 @@ document.addEventListener("DOMContentLoaded", async () => {
       reader.readAsText(file);
       // Reset input value to allow uploading the same file again
       inputFileSelectors.value = "";
+    });
+  }
+
+  // Update Online button handler
+  if (btnUpdateOnline) {
+    btnUpdateOnline.addEventListener("click", async () => {
+      const gitHubUrl = "https://raw.githubusercontent.com/hoangquangnguyen/EXTENSION_CHAT/master/selectors.json";
+      
+      btnUpdateOnline.disabled = true;
+      const originalText = btnUpdateOnline.textContent;
+      btnUpdateOnline.textContent = "🔄 Updating...";
+      showPresetBanner("Fetching selectors from GitHub...");
+
+      try {
+        const response = await fetch(gitHubUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP status ${response.status}`);
+        }
+        
+        const json = await response.json();
+        
+        if (json && json.presets) {
+          loadedPresets = { ...loadedPresets, ...json.presets };
+          
+          // Determine the active preset. Keep current active key if it exists, otherwise fall back to new default/first key
+          const newDefaultKey = json.default || Object.keys(json.presets)[0];
+          if (!loadedPresets[activePresetKey]) {
+            activePresetKey = newDefaultKey;
+          }
+          
+          // Re-populate dropdown
+          populatePresetDropdown(loadedPresets, activePresetKey);
+          
+          // Get selectors for active preset
+          const activeSelectors = (loadedPresets[activePresetKey] && loadedPresets[activePresetKey].selectors) || {};
+          selContainer.value = activeSelectors.chatContainer || "";
+          selNode.value = activeSelectors.commentNode || "";
+          selNickname.value = activeSelectors.nickname || "";
+          selUsername.value = activeSelectors.username || "";
+          selMessage.value = activeSelectors.message || "";
+          selProfile.value = activeSelectors.profilePic || "";
+
+          // Save to local storage
+          if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+            await chrome.storage.local.set({ 
+              selector_presets: loadedPresets,
+              selectors: activeSelectors,
+              active_preset: activePresetKey
+            });
+          }
+
+          showPresetBanner("✅ Selectors updated successfully from GitHub!");
+          
+          // Trigger tab validation check based on updated rules
+          isValidTab = await validateActiveTab();
+          updateTabWarningUI(isValidTab);
+          updateDiagnosticsUI();
+        } else {
+          showPresetBanner("❌ Invalid JSON: missing 'presets' object", true);
+        }
+      } catch (err) {
+        console.error("Failed to update selectors online:", err);
+        showPresetBanner("❌ Failed to update: " + err.message, true);
+      } finally {
+        btnUpdateOnline.disabled = false;
+        btnUpdateOnline.textContent = originalText;
+      }
     });
   }
 

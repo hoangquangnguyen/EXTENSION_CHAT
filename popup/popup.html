@@ -81,18 +81,23 @@
         <span class="arrow">▼</span>
       </button>
       <div class="accordion-content" id="panel-selectors">
-        <div class="form-group row" style="align-items: flex-end; gap: 8px; margin-bottom: 4px;">
-          <div class="form-col" style="flex: 1.5;">
+        <div class="form-group row" style="align-items: flex-end; gap: 6px; margin-bottom: 4px;">
+          <div class="form-col" style="flex: 1.2;">
             <label for="sel-preset">Platform Preset</label>
             <select id="sel-preset">
               <!-- Options populated dynamically -->
             </select>
           </div>
-          <div class="form-col" style="flex: 1;">
-            <button type="button" id="btn-import-json" class="btn-secondary" style="height: 28px; font-size: 0.7rem; padding: 0 4px; display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%;">
+          <div class="form-col" style="flex: 0.9;">
+            <button type="button" id="btn-import-json" class="btn-secondary" style="height: 28px; font-size: 0.65rem; padding: 0 2px; display: flex; align-items: center; justify-content: center; gap: 2px; width: 100%;">
               📂 Load JSON
             </button>
             <input type="file" id="input-file-selectors" accept=".json" style="display: none;">
+          </div>
+          <div class="form-col" style="flex: 0.9;">
+            <button type="button" id="btn-update-online" class="btn-secondary" style="height: 28px; font-size: 0.65rem; padding: 0 2px; display: flex; align-items: center; justify-content: center; gap: 2px; width: 100%;">
+              🌐 Update Online
+            </button>
           </div>
         </div>
         <div id="preset-info-banner" class="test-result success hidden" style="font-size: 0.7rem; padding: 6px; border-radius: 4px; margin-top: 2px; text-align: center;"></div>
