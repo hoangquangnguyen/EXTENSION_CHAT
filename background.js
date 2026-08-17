@@ -22,9 +22,9 @@ chrome.runtime.onInstalled.addListener(async () => {
     if (!storageData.connection_settings) {
       const defaultSettings = {
         host: "127.0.0.1",
-        port: "6161",
-        protocol: "ws",
-        path: "/"
+        port: "3003",
+        protocol: "http",
+        path: "/api/chat/tiktok-comment"
       };
       await chrome.storage.local.set({ connection_settings: defaultSettings });
       console.log("Default connection settings initialized in storage:", defaultSettings);
@@ -101,7 +101,7 @@ chrome.storage.onChanged.addListener(async (changes, areaName) => {
     // Broadcast config changes to offscreen if open
     if (changes.connection_settings || changes.monitoring_active) {
       chrome.storage.local.get(["connection_settings", "monitoring_active"], (res) => {
-        const settings = res.connection_settings || { host: "127.0.0.1", port: "6161", protocol: "ws", path: "/" };
+        const settings = res.connection_settings || { host: "127.0.0.1", port: "3003", protocol: "http", path: "/api/chat/tiktok-comment" };
         const active = !!res.monitoring_active;
         chrome.runtime.sendMessage({
           type: "UPDATE_OFFSCREEN",
@@ -126,7 +126,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === "OFFSCREEN_LOADED") {
     console.log("Background: Offscreen document loaded. Syncing settings...");
     chrome.storage.local.get(["connection_settings", "monitoring_active"], (res) => {
-      const settings = res.connection_settings || { host: "127.0.0.1", port: "6161", protocol: "ws", path: "/" };
+      const settings = res.connection_settings || { host: "127.0.0.1", port: "3003", protocol: "http", path: "/api/chat/tiktok-comment" };
       const active = !!res.monitoring_active;
       chrome.runtime.sendMessage({
         type: "INIT_OFFSCREEN",

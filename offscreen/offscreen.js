@@ -6,9 +6,9 @@ console.log("TikTok Chat Extension: Offscreen Script loaded.");
 let socket = null;
 let connectionSettings = {
   host: "127.0.0.1",
-  port: "6161",
-  protocol: "ws",
-  path: "/"
+  port: "3003",
+  protocol: "http",
+  path: "/api/chat/tiktok-comment"
 };
 let monitoringActive = false;
 

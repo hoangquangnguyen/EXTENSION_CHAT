@@ -114,7 +114,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // 3. Storage connection details
     chrome.storage.local.get(["connection_settings", "monitoring_active", "connection_status", "last_connection_error"], (res) => {
-      const settings = res.connection_settings || { host: "127.0.0.1", port: "6161", protocol: "ws", path: "/" };
+      const settings = res.connection_settings || { host: "127.0.0.1", port: "3003", protocol: "http", path: "/api/chat/tiktok-comment" };
       const monitoring = !!res.monitoring_active;
       const status = res.connection_status || "disconnected";
       const errorMsg = res.last_connection_error || "";
@@ -410,7 +410,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     updateTabWarningUI(isValidTab);
 
     chrome.storage.local.get(["connection_settings", "selectors", "monitoring_active", "connection_status", "last_connection_error", "active_preset"], (res) => {
-      const settings = res.connection_settings || { host: "127.0.0.1", port: "6161", protocol: "ws", path: "/" };
+      const settings = res.connection_settings || { host: "127.0.0.1", port: "3003", protocol: "http", path: "/api/chat/tiktok-comment" };
       const selectors = res.selectors || {};
       const active = isValidTab ? !!res.monitoring_active : false;
       const status = res.connection_status || "disconnected";
@@ -420,10 +420,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       const presetSelectors = (loadedPresets[activePreset] && loadedPresets[activePreset].selectors) || DEFAULT_SELECTORS;
 
       // Fill connection inputs
-      inputProtocol.value = settings.protocol || "ws";
+      inputProtocol.value = settings.protocol || "http";
       inputHost.value = settings.host || "127.0.0.1";
-      inputPort.value = settings.port || "6161";
-      inputPath.value = settings.path || "/";
+      inputPort.value = settings.port || "3003";
+      inputPath.value = settings.path || "/api/chat/tiktok-comment";
 
       // Fill selector inputs
       selContainer.value = selectors.chatContainer || presetSelectors.chatContainer;
@@ -486,7 +486,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     btnTestConn.addEventListener("click", () => {
       const protocol = inputProtocol.value.trim();
       const host = inputHost.value.trim() || "127.0.0.1";
-      const port = inputPort.value.trim() || "6161";
+      const port = inputPort.value.trim() || "3003";
       const path = inputPath.value.trim();
       const formattedPath = path.startsWith("/") ? path : `/${path}`;
 
