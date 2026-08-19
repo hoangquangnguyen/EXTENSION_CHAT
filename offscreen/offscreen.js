@@ -79,13 +79,52 @@ function stopReconnectTimer() {
   }
 }
 
+// Helper to build full URL from protocol, host, port, and path settings
+function buildUrl(protocol, host, port, path) {
+  let url = (host || "").trim();
+  const safeProtocol = (protocol || "http").trim();
+  const safePort = (port || "").trim();
+  const safePath = (path || "").trim();
+  const formattedPath = safePath ? (safePath.startsWith("/") ? safePath : `/${safePath}`) : "";
+
+  if (/^[a-zA-Z]+:\/\//.test(url)) {
+    if (safeProtocol === "ws") {
+      url = url.replace(/^http:/i, "ws:").replace(/^https:/i, "wss:");
+    } else if (safeProtocol === "http") {
+      url = url.replace(/^ws:/i, "http:").replace(/^wss:/i, "https:");
+    }
+    
+    try {
+      const parsed = new URL(url);
+      if ((parsed.pathname === "/" || parsed.pathname === "") && formattedPath) {
+        url = `${parsed.protocol}//${parsed.host}${formattedPath}${parsed.search}`;
+      }
+    } catch (e) {}
+    
+    return url;
+  }
+
+  const hostPart = url.split("/")[0];
+  const hasPort = hostPart.includes(":") && !hostPart.endsWith("]");
+  
+  const portStr = (hasPort || !safePort) ? "" : `:${safePort}`;
+  const hasPath = url.includes("/");
+  const pathStr = hasPath ? "" : formattedPath;
+  
+  return `${safeProtocol}://${url}${portStr}${pathStr}`;
+}
+
 // Establishes a connection based on protocol setting
 function connectWebSocket() {
   disconnectWebSocket();
 
   const { host, port, path } = connectionSettings;
-  const formattedPath = path.startsWith("/") ? path : `/${path}`;
-  const url = `ws://${host}:${port}${formattedPath}`;
+  const url = buildUrl("ws", host, port, path);
+  let displayHost = `${host}:${port}`;
+  try {
+    const parsed = new URL(url);
+    displayHost = parsed.host;
+  } catch (e) {}
 
   console.log(`Offscreen: Connecting to WebSocket at ${url}`);
   sendConnectionStatus("connecting");
@@ -107,7 +146,7 @@ function connectWebSocket() {
 
     socket.onerror = (error) => {
       console.error("Offscreen: WebSocket error:", error);
-      saveConnectionError(`WebSocket error: Connection refused or host unreachable at ${host}:${port}.`);
+      saveConnectionError(`WebSocket error: Connection refused or host unreachable at ${displayHost}.`);
     };
 
     socket.onclose = (event) => {
@@ -139,8 +178,12 @@ function disconnectWebSocket() {
 // Polls the HTTP server to check availability and recover
 function checkHttpConnection() {
   const { host, port, path } = connectionSettings;
-  const formattedPath = path.startsWith("/") ? path : `/${path}`;
-  const url = `http://${host}:${port}${formattedPath}`;
+  const url = buildUrl("http", host, port, path);
+  let displayHost = `${host}:${port}`;
+  try {
+    const parsed = new URL(url);
+    displayHost = parsed.host;
+  } catch (e) {}
 
   console.log(`Offscreen: Polling HTTP server at ${url}...`);
   sendConnectionStatus("connecting");
@@ -172,7 +215,7 @@ function checkHttpConnection() {
     .catch(error => {
       console.error("Offscreen: HTTP poll failed:", error);
       sendConnectionStatus("disconnected");
-      saveConnectionError(`HTTP connection failed: host ${host}:${port} is unreachable.`);
+      saveConnectionError(`HTTP connection failed: host ${displayHost} is unreachable.`);
     });
   } else {
     // Otherwise do a simple GET request
@@ -186,7 +229,7 @@ function checkHttpConnection() {
     .catch(error => {
       console.error("Offscreen: HTTP poll failed:", error);
       sendConnectionStatus("disconnected");
-      saveConnectionError(`HTTP connection failed: host ${host}:${port} is unreachable.`);
+      saveConnectionError(`HTTP connection failed: host ${displayHost} is unreachable.`);
     });
   }
 }
@@ -260,8 +303,7 @@ function sendNextHttpBufferedComment() {
 
   const payload = commentBuffer[0];
   const { host, port, path } = connectionSettings;
-  const formattedPath = path.startsWith("/") ? path : `/${path}`;
-  const url = `http://${host}:${port}${formattedPath}`;
+  const url = buildUrl("http", host, port, path);
 
   fetch(url, {
     method: "POST",
@@ -306,8 +348,7 @@ function sendViaWebSocket(payload) {
 // Sends comment payload via HTTP POST
 function sendViaHttpPost(payload) {
   const { host, port, path } = connectionSettings;
-  const formattedPath = path.startsWith("/") ? path : `/${path}`;
-  const url = `http://${host}:${port}${formattedPath}`;
+  const url = buildUrl("http", host, port, path);
 
   console.log(`Offscreen: Sending HTTP POST to ${url}`);
 

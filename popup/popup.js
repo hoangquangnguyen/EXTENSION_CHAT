@@ -46,6 +46,41 @@ document.addEventListener("DOMContentLoaded", async () => {
   const inputHost = document.getElementById("input-host");
   const inputPort = document.getElementById("input-port");
   const inputPath = document.getElementById("input-path");
+
+  // Helper to build full URL from protocol, host, port, and path settings
+  function buildUrl(protocol, host, port, path) {
+    let url = (host || "").trim();
+    const safeProtocol = (protocol || "http").trim();
+    const safePort = (port || "").trim();
+    const safePath = (path || "").trim();
+    const formattedPath = safePath ? (safePath.startsWith("/") ? safePath : `/${safePath}`) : "";
+
+    if (/^[a-zA-Z]+:\/\//.test(url)) {
+      if (safeProtocol === "ws") {
+        url = url.replace(/^http:/i, "ws:").replace(/^https:/i, "wss:");
+      } else if (safeProtocol === "http") {
+        url = url.replace(/^ws:/i, "http:").replace(/^wss:/i, "https:");
+      }
+      
+      try {
+        const parsed = new URL(url);
+        if ((parsed.pathname === "/" || parsed.pathname === "") && formattedPath) {
+          url = `${parsed.protocol}//${parsed.host}${formattedPath}${parsed.search}`;
+        }
+      } catch (e) {}
+      
+      return url;
+    }
+
+    const hostPart = url.split("/")[0];
+    const hasPort = hostPart.includes(":") && !hostPart.endsWith("]");
+    
+    const portStr = (hasPort || !safePort) ? "" : `:${safePort}`;
+    const hasPath = url.includes("/");
+    const pathStr = hasPath ? "" : formattedPath;
+    
+    return `${safeProtocol}://${url}${portStr}${pathStr}`;
+  }
   
   // Selector Inputs
   const selContainer = document.getElementById("sel-container");
@@ -119,8 +154,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const status = res.connection_status || "disconnected";
       const errorMsg = res.last_connection_error || "";
 
-      const formattedPath = settings.path.startsWith("/") ? settings.path : `/${settings.path}`;
-      diagTargetUrl.textContent = `${settings.protocol}://${settings.host}:${settings.port}${formattedPath}`;
+      diagTargetUrl.textContent = buildUrl(settings.protocol, settings.host, settings.port, settings.path);
       diagTargetUrl.className = "diag-value";
 
       diagMonitoringState.textContent = monitoring ? "Active (On)" : "Inactive (Off)";
@@ -488,11 +522,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       const host = inputHost.value.trim() || "127.0.0.1";
       const port = inputPort.value.trim() || "3003";
       const path = inputPath.value.trim();
-      const formattedPath = path.startsWith("/") ? path : `/${path}`;
+      const url = buildUrl(protocol, host, port, path);
 
       // Reset UI feedback states
       testResult.className = "test-result testing";
-      testResult.textContent = `Testing connection to ${protocol}://${host}:${port}${formattedPath}...`;
+      testResult.textContent = `Testing connection to ${url}...`;
       testResult.classList.remove("hidden");
       btnTestConn.disabled = true;
 
@@ -505,7 +539,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       };
 
       if (protocol === "ws") {
-        const url = `ws://${host}:${port}${formattedPath}`;
         try {
           testSocket = new WebSocket(url);
           
@@ -539,8 +572,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
       } else {
         // HTTP protocol
-        const url = `http://${host}:${port}${formattedPath}`;
-        
         timeoutId = setTimeout(() => {
           testResult.className = "test-result error";
           testResult.textContent = `❌ HTTP Connection Timeout at ${url}`;
