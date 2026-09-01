@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Extension Chat Selector Tester</title>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent: #8b5cf6;
+      --accent-glow: rgba(139, 92, 246, 0.35);
+      --accent-hover: #a78bfa;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --success: #10b981;
+      --success-bg: rgba(16, 185, 129, 0.15);
+      --warning: #f59e0b;
+      --warning-bg: rgba(245, 158, 11, 0.15);
+      --error: #ef4444;
+      --error-bg: rgba(239, 68, 68, 0.15);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.1) 0px, transparent 50%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    header {
+      padding: 1.5rem 2rem;
+      border-bottom: 1px solid var(--card-border);
+      backdrop-filter: blur(12px);
+      background: rgba(15, 23, 42, 0.6);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-icon {
+      width: 2.25rem;
+      height: 2.25rem;
+      background: linear-gradient(135deg, var(--accent), #3b82f6);
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: white;
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      background: linear-gradient(to right, #ffffff, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 350px 1fr;
+      gap: 1.5rem;
+      padding: 1.5rem;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+      height: calc(100vh - 80px);
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      overflow-y: auto;
+      padding-right: 0.25rem;
+    }
+
+    .content-area {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      overflow-y: auto;
+    }
+
+    /* Scrollbar Styling */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 1rem;
+      padding: 1.25rem;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .dropzone-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .dropzone {
+      border: 2px dashed rgba(255, 255, 255, 0.15);
+      border-radius: 0.75rem;
+      padding: 1.25rem 0.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: rgba(15, 23, 42, 0.3);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--accent);
+      background: rgba(139, 92, 246, 0.05);
+      box-shadow: 0 0 15px rgba(139, 92, 246, 0.15);
+    }
+
+    .dropzone svg {
+      width: 1.75rem;
+      height: 1.75rem;
+      color: var(--text-muted);
+      transition: color 0.2s ease;
+    }
+
+    .dropzone:hover svg {
+      color: var(--accent);
+    }
+
+    .dropzone-label {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    .dropzone-sub {
+      font-size: 0.65rem;
+      color: var(--text-dim);
+    }
+
+    .file-status {
+      font-size: 0.7rem;
+      margin-top: 0.5rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.375rem;
+      display: inline-block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-status.loaded {
+      background: var(--success-bg);
+      color: var(--success);
+    }
+
+    .file-status.pending {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+    }
+
+    .form-group {
+      margin-bottom: 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .form-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .form-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .form-label span.badge {
+      font-size: 0.65rem;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 0.1rem 0.35rem;
+      border-radius: 0.25rem;
+      color: var(--text-dim);
+      font-family: 'Fira Code', monospace;
+    }
+
+    .form-input {
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid var(--card-border);
+      border-radius: 0.5rem;
+      padding: 0.6rem 0.75rem;
+      color: var(--text-main);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.75rem;
+      transition: all 0.2s ease;
+      width: 100%;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 10px rgba(139, 92, 246, 0.2);
+    }
+
+    select.form-input {
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    /* Diagnostics Overview Panel */
+    .diag-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+    }
+
+    .diag-card {
+      background: rgba(30, 41, 59, 0.4);
+      border: 1px solid var(--card-border);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .diag-card::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+    }
+
+    .diag-card.info::after { background: var(--accent); }
+    .diag-card.success::after { background: var(--success); }
+    .diag-card.warning::after { background: var(--warning); }
+    .diag-card.error::after { background: var(--error); }
+
+    .diag-val {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .diag-lbl {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .diag-sub {
+      font-size: 0.65rem;
+      color: var(--text-dim);
+    }
+
+    /* Tabs & Content Views */
+    .tab-header {
+      display: flex;
+      gap: 0.5rem;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.4rem 0.8rem;
+      cursor: pointer;
+      border-radius: 0.375rem;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tab-btn.active {
+      color: white;
+      background: var(--accent);
+    }
+
+    .results-container {
+      flex: 1;
+      position: relative;
+    }
+
+    /* Views */
+    .view-pane {
+      display: none;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+
+    .view-pane.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Table styling */
+    .table-wrapper {
+      overflow-x: auto;
+      max-height: 480px;
+      border-radius: 0.5rem;
+      border: 1px solid var(--card-border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      text-align: left;
+    }
+
+    th, td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    th {
+      background: rgba(15, 23, 42, 0.8);
+      color: var(--text-muted);
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .avatar-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .avatar-img {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      object-fit: cover;
+      display: block;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .avatar-placeholder {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      background: var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.6rem;
+      color: var(--text-dim);
+      font-weight: bold;
+    }
+
+    .badge-status {
+      display: inline-block;
+      padding: 0.15rem 0.4rem;
+      border-radius: 0.25rem;
+      font-size: 0.65rem;
+      font-weight: 600;
+    }
+
+    .badge-status.present {
+      background: var(--success-bg);
+      color: var(--success);
+    }
+
+    .badge-status.missing {
+      background: var(--warning-bg);
+      color: var(--warning);
+    }
+
+    /* Feed Layout */
+    .feed-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-height: 480px;
+      overflow-y: auto;
+      padding-right: 0.5rem;
+      background: rgba(15, 23, 42, 0.4);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      border: 1px solid var(--card-border);
+    }
+
+    .feed-item {
+      display: flex;
+      gap: 0.75rem;
+      padding: 0.6rem;
+      border-radius: 0.5rem;
+      background: rgba(255, 255, 255, 0.02);
+      transition: background 0.15s ease;
+      align-items: flex-start;
+    }
+
+    .feed-item:hover {
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .feed-content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+      flex: 1;
+    }
+
+    .feed-header {
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .feed-nickname {
+      font-weight: 700;
+      font-size: 0.8rem;
+      color: #e2e8f0;
+    }
+
+    .feed-username {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    .feed-message {
+      font-size: 0.8rem;
+      color: #f1f5f9;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+
+    /* Empty state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 4rem 2rem;
+      text-align: center;
+      color: var(--text-muted);
+      gap: 1rem;
+    }
+
+    .empty-state svg {
+      width: 3.5rem;
+      height: 3.5rem;
+      color: var(--text-dim);
+    }
+
+    /* Paste area styling */
+    .toggle-paste-btn {
+      background: transparent;
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .toggle-paste-btn:hover {
+      border-color: var(--accent);
+      color: var(--text-main);
+    }
+
+    .paste-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.95);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(10px);
+      padding: 2rem;
+    }
+
+    .paste-modal {
+      background: #1e293b;
+      border: 1px solid var(--card-border);
+      border-radius: 1rem;
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      padding: 1.5rem;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+
+    .paste-textarea {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--card-border);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      color: var(--text-main);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.75rem;
+      resize: vertical;
+      min-height: 350px;
+      width: 100%;
+    }
+
+    .paste-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+    }
+
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 0.375rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--card-border);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-main);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      box-shadow: 0 0 10px rgba(139, 92, 246, 0.3);
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      padding: 0.75rem 1.25rem;
+      background: var(--success);
+      color: white;
+      border-radius: 0.5rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+      display: none;
+      animation: slideIn 0.3s ease-out;
+      z-index: 2000;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateY(100px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo-container">
+      <div class="logo-icon">T</div>
+      <div>
+        <h1>Selector & HTML Scraper Tester</h1>
+        <div class="subtitle">Validate CSS Selectors for Shopee/TikTok Live Chat Streams</div>
+      </div>
+    </div>
+    <div style="display: flex; gap: 0.75rem; align-items: center;">
+      <button class="toggle-paste-btn" id="btn-paste-html">Paste Raw HTML</button>
+      <button class="toggle-paste-btn" id="btn-paste-json">Paste Selector JSON</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Left Sidebar: Configurations -->
+    <div class="sidebar">
+      
+      <!-- File Loading Section -->
+      <div class="card">
+        <div class="card-title">
+          <span>Load Input Files</span>
+        </div>
+        <div class="dropzone-container">
+          <div class="dropzone" id="selectors-dropzone">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span class="dropzone-label">selectors.json</span>
+            <span class="dropzone-sub">Click / Drag</span>
+            <input type="file" id="file-selectors" accept=".json" style="display:none;">
+            <span class="file-status pending" id="status-selectors">No file loaded</span>
+          </div>
+
+          <div class="dropzone" id="html-dropzone">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+            </svg>
+            <span class="dropzone-label">stream.html</span>
+            <span class="dropzone-sub">Click / Drag</span>
+            <input type="file" id="file-html" accept=".html,.htm" style="display:none;">
+            <span class="file-status pending" id="status-html">No file loaded</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preset Selector & Live Inputs -->
+      <div class="card" style="flex: 1; display: flex; flex-direction: column;">
+        <div class="card-title">
+          <span>Selector Settings</span>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label" for="preset-select">Active Preset</label>
+          <select class="form-input" id="preset-select">
+            <option value="custom">Custom (No Preset)</option>
+          </select>
+        </div>
+
+        <div style="border-top: 1px solid var(--card-border); margin: 0.75rem 0; padding-top: 0.75rem; flex: 1; overflow-y: auto;">
+          <div class="form-group">
+            <label class="form-label" for="sel-chatContainer">
+              Chat Container
+              <span class="badge" title="Query target inside document to check container persistence">container</span>
+            </label>
+            <input type="text" class="form-input" id="sel-chatContainer" placeholder="e.g. .chat-list">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="sel-commentNode">
+              Comment Node
+              <span class="badge" title="Matching element containing a single chat item">node</span>
+            </label>
+            <input type="text" class="form-input" id="sel-commentNode" placeholder="e.g. .chat-item">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="sel-nickname">
+              Nickname Selector
+              <span class="badge" title="Elements matching display name (relative to comment node)">nickname</span>
+            </label>
+            <input type="text" class="form-input" id="sel-nickname" placeholder="e.g. .nickname">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="sel-username">
+              Username Selector
+              <span class="badge" title="Elements matching @username (relative to comment node)">username</span>
+            </label>
+            <input type="text" class="form-input" id="sel-username" placeholder="e.g. .username">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="sel-message">
+              Message Selector
+              <span class="badge" title="Elements matching comment text content (relative to comment node)">message</span>
+            </label>
+            <input type="text" class="form-input" id="sel-message" placeholder="e.g. .message-text">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="sel-profilePic">
+              Avatar (img) Selector
+              <span class="badge" title="Image element hosting profile photo (relative to comment node)">avatar</span>
+            </label>
+            <input type="text" class="form-input" id="sel-profilePic" placeholder="e.g. img.avatar">
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Area: Results & Diagnostics -->
+    <div class="content-area">
+      
+      <!-- Diagnostic panel -->
+      <div class="diag-grid">
+        <div class="diag-card info" id="diag-container">
+          <div class="diag-val" id="diag-container-status">Waiting</div>
+          <div class="diag-lbl">Chat Container</div>
+          <div class="diag-sub" id="diag-container-sub">Load files to begin</div>
+        </div>
+        <div class="diag-card success" id="diag-comments">
+          <div class="diag-val" id="diag-comments-status">0</div>
+          <div class="diag-lbl">Total Comments</div>
+          <div class="diag-sub" id="diag-comments-sub">Matches found</div>
+        </div>
+        <div class="diag-card success" id="diag-profile-pic">
+          <div class="diag-val" id="diag-profile-pic-pct">0%</div>
+          <div class="diag-lbl">Avatars Found</div>
+          <div class="diag-sub" id="diag-profile-pic-sub">0 total</div>
+        </div>
+        <div class="diag-card success" id="diag-text-quality">
+          <div class="diag-val" id="diag-text-quality-pct">0%</div>
+          <div class="diag-lbl">Message Match Rate</div>
+          <div class="diag-sub" id="diag-text-quality-sub">0 text entries</div>
+        </div>
+      </div>
+
+      <!-- Main Results Panel -->
+      <div class="card" style="flex: 1; display: flex; flex-direction: column;">
+        <div class="tab-header">
+          <button class="tab-btn active" id="btn-tab-feed">Live Feed Preview</button>
+          <button class="tab-btn" id="btn-tab-table">Tabular Data Detail</button>
+        </div>
+
+        <div class="results-container">
+          <!-- Feed View -->
+          <div class="view-pane active" id="pane-feed">
+            <div class="feed-wrapper" id="feed-container">
+              <!-- Empty state before data -->
+              <div class="empty-state">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                <div>
+                  <p style="font-weight:600; font-size: 0.9rem; margin-bottom: 0.25rem;">No HTML Loaded Yet</p>
+                  <p style="font-size:0.75rem;">Load selector JSON and an HTML document to preview extracted messages.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Table View -->
+          <div class="view-pane" id="pane-table">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Avatar & Names</th>
+                    <th>Username</th>
+                    <th>Message Text</th>
+                    <th>Status Check</th>
+                  </tr>
+                </thead>
+                <tbody id="table-body">
+                  <tr>
+                    <td colspan="5" class="empty-state">
+                      <div class="empty-state" style="padding: 2rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <p style="font-size:0.75rem;">Data is currently empty.</p>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Paste Raw Input Modal Overlay -->
+  <div class="paste-overlay" id="paste-overlay">
+    <div class="paste-modal">
+      <h3 style="font-size: 1rem; font-weight: 700;" id="paste-title">Paste Input</h3>
+      <textarea class="paste-textarea" id="paste-input" placeholder="Paste data here..."></textarea>
+      <div class="paste-actions">
+        <button class="btn btn-secondary" id="btn-paste-cancel">Cancel</button>
+        <button class="btn btn-primary" id="btn-paste-submit">Apply Input</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Alert -->
+  <div class="toast" id="toast-msg">Loaded successfully!</div>
+
+  <script>
+    // State management
+    let loadedSelectors = null;
+    let loadedHTMLContent = "";
+    let activePresetName = "custom";
+    let pasteTarget = "";
+
+    // DOM Compliant Event Setup (CSP compliant)
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById('btn-paste-html').addEventListener('click', () => openPasteModal('html'));
+      document.getElementById('btn-paste-json').addEventListener('click', () => openPasteModal('json'));
+      
+      document.getElementById('selectors-dropzone').addEventListener('click', () => {
+        document.getElementById('file-selectors').click();
+      });
+      document.getElementById('html-dropzone').addEventListener('click', () => {
+        document.getElementById('file-html').click();
+      });
+
+      document.getElementById('file-selectors').addEventListener('change', (e) => {
+        handleFileSelect(e.target, 'selectors');
+      });
+      document.getElementById('file-html').addEventListener('change', (e) => {
+        handleFileSelect(e.target, 'html');
+      });
+
+      document.getElementById('preset-select').addEventListener('change', (e) => {
+        applyPreset(e.target.value);
+      });
+
+      const selectorInputs = [
+        'sel-chatContainer',
+        'sel-commentNode',
+        'sel-nickname',
+        'sel-username',
+        'sel-message',
+        'sel-profilePic'
+      ];
+      selectorInputs.forEach(id => {
+        document.getElementById(id).addEventListener('input', triggerReparse);
+      });
+
+      document.getElementById('btn-tab-feed').addEventListener('click', () => switchTab('feed'));
+      document.getElementById('btn-tab-table').addEventListener('click', () => switchTab('table'));
+
+      document.getElementById('btn-paste-cancel').addEventListener('click', closePasteModal);
+      document.getElementById('btn-paste-submit').addEventListener('click', submitPaste);
+    });
+
+    // Drag-and-drop support
+    setupDragAndDrop('selectors-dropzone', 'selectors');
+    setupDragAndDrop('html-dropzone', 'html');
+
+    function setupDragAndDrop(elementId, type) {
+      const el = document.getElementById(elementId);
+      
+      ['dragenter', 'dragover'].forEach(eventName => {
+        el.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          el.classList.add('dragover');
+        }, false);
+      });
+
+      ['dragleave', 'drop'].forEach(eventName => {
+        el.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          el.classList.remove('dragover');
+        }, false);
+      });
+
+      el.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files && files.length > 0) {
+          handleFileProcessing(files[0], type);
+        }
+      }, false);
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toast-msg');
+      toast.textContent = message;
+      toast.style.display = 'block';
+      setTimeout(() => {
+        toast.style.display = 'none';
+      }, 3000);
+    }
+
+    // Modal controls
+    function openPasteModal(target) {
+      pasteTarget = target;
+      const title = document.getElementById('paste-title');
+      const input = document.getElementById('paste-input');
+      
+      if (target === 'html') {
+        title.textContent = "Paste Target Stream HTML Code";
+        input.placeholder = "Paste your raw target livechat page HTML code here...";
+        input.value = loadedHTMLContent;
+      } else {
+        title.textContent = "Paste Selectors JSON config";
+        input.placeholder = '{\n  "presets": {\n    "myPreset": {\n      "selectors": {\n        ...\n      }\n    }\n  }\n}';
+        input.value = loadedSelectors ? JSON.stringify(loadedSelectors, null, 2) : "";
+      }
+      
+      document.getElementById('paste-overlay').style.display = 'flex';
+    }
+
+    function closePasteModal() {
+      document.getElementById('paste-overlay').style.display = 'none';
+    }
+
+    function submitPaste() {
+      const val = document.getElementById('paste-input').value;
+      if (pasteTarget === 'html') {
+        loadedHTMLContent = val;
+        const status = document.getElementById('status-html');
+        status.textContent = "Pasted HTML (" + formatBytes(val.length) + ")";
+        status.className = "file-status loaded";
+        showToast("HTML Loaded from paste!");
+      } else {
+        try {
+          const parsed = JSON.parse(val);
+          processSelectorsJSON(parsed);
+          const status = document.getElementById('status-selectors');
+          status.textContent = "Pasted JSON";
+          status.className = "file-status loaded";
+          showToast("JSON Loaded from paste!");
+        } catch (e) {
+          alert("Invalid JSON data format: " + e.message);
+          return;
+        }
+      }
+      closePasteModal();
+      runExtraction();
+    }
+
+    function handleFileSelect(input, type) {
+      if (input.files && input.files[0]) {
+        handleFileProcessing(input.files[0], type);
+      }
+    }
+
+    function handleFileProcessing(file, type) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const text = e.target.result;
+        const status = document.getElementById('status-' + type);
+        
+        if (type === 'selectors') {
+          try {
+            const parsed = JSON.parse(text);
+            processSelectorsJSON(parsed);
+            status.textContent = file.name;
+            status.className = "file-status loaded";
+            showToast("Selectors loaded!");
+          } catch(err) {
+            alert("Error parsing JSON: " + err.message);
+          }
+        } else if (type === 'html') {
+          loadedHTMLContent = text;
+          status.textContent = file.name + " (" + formatBytes(file.size) + ")";
+          status.className = "file-status loaded";
+          showToast("HTML loaded successfully!");
+          runExtraction();
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    function processSelectorsJSON(json) {
+      loadedSelectors = json;
+      const select = document.getElementById('preset-select');
+      
+      // Clear options keeping Custom
+      select.innerHTML = '<option value="custom">Custom (No Preset)</option>';
+      
+      if (json.presets) {
+        Object.keys(json.presets).forEach(key => {
+          const opt = document.createElement('option');
+          opt.value = key;
+          opt.textContent = json.presets[key].name || key;
+          select.appendChild(opt);
+        });
+
+        // Set default if specified
+        if (json.default && json.presets[json.default]) {
+          select.value = json.default;
+          applyPreset(json.default);
+        } else if (Object.keys(json.presets).length > 0) {
+          const firstKey = Object.keys(json.presets)[0];
+          select.value = firstKey;
+          applyPreset(firstKey);
+        }
+      }
+    }
+
+    function applyPreset(presetKey) {
+      activePresetName = presetKey;
+      if (presetKey === 'custom') return;
+      
+      if (loadedSelectors && loadedSelectors.presets && loadedSelectors.presets[presetKey]) {
+        const selObj = loadedSelectors.presets[presetKey].selectors;
+        
+        document.getElementById('sel-chatContainer').value = selObj.chatContainer || "";
+        document.getElementById('sel-commentNode').value = selObj.commentNode || "";
+        document.getElementById('sel-nickname').value = selObj.nickname || "";
+        document.getElementById('sel-username').value = selObj.username || "";
+        document.getElementById('sel-message').value = selObj.message || "";
+        document.getElementById('sel-profilePic').value = selObj.profilePic || "";
+        
+        runExtraction();
+      }
+    }
+
+    function triggerReparse() {
+      // Whenever user edits inputs directly, fallback active preset to custom or keep it
+      runExtraction();
+    }
+
+    // Core scraping tester logic
+    function runExtraction() {
+      if (!loadedHTMLContent) return;
+
+      const containerSel = document.getElementById('sel-chatContainer').value.trim();
+      const commentSel = document.getElementById('sel-commentNode').value.trim();
+      const nicknameSel = document.getElementById('sel-nickname').value.trim();
+      const usernameSel = document.getElementById('sel-username').value.trim();
+      const messageSel = document.getElementById('sel-message').value.trim();
+      const profilePicSel = document.getElementById('sel-profilePic').value.trim();
+
+      // Parse HTML
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(loadedHTMLContent, 'text/html');
+
+      // 1. Locate Chat Container
+      let container = null;
+      const diagContainer = document.getElementById('diag-container');
+      const diagContainerStatus = document.getElementById('diag-container-status');
+      const diagContainerSub = document.getElementById('diag-container-sub');
+
+      if (containerSel) {
+        container = doc.querySelector(containerSel);
+        if (container) {
+          diagContainer.className = "diag-card success";
+          diagContainerStatus.textContent = "FOUND";
+          diagContainerSub.textContent = "Selector matched container successfully.";
+        } else {
+          diagContainer.className = "diag-card error";
+          diagContainerStatus.textContent = "NOT FOUND";
+          diagContainerSub.textContent = "Could not locate element in doc.";
+        }
+      } else {
+        diagContainer.className = "diag-card warning";
+        diagContainerStatus.textContent = "OMITTED";
+        diagContainerSub.textContent = "Searching document scope directly.";
+      }
+
+      // 2. Locate Comment Nodes
+      let commentNodes = [];
+      if (commentSel) {
+        const root = container || doc;
+        commentNodes = Array.from(root.querySelectorAll(commentSel));
+      }
+
+      const totalComments = commentNodes.length;
+      
+      const diagComments = document.getElementById('diag-comments');
+      const diagCommentsStatus = document.getElementById('diag-comments-status');
+      const diagCommentsSub = document.getElementById('diag-comments-sub');
+
+      diagCommentsStatus.textContent = totalComments;
+      if (totalComments > 0) {
+        diagComments.className = "diag-card success";
+        diagCommentsSub.textContent = `Found ${totalComments} list nodes`;
+      } else {
+        diagComments.className = "diag-card error";
+        diagCommentsSub.textContent = "0 nodes matched " + (commentSel || "empty");
+      }
+
+      // 3. Extract items
+      let results = [];
+      let avatarsFound = 0;
+      let nicknamesFound = 0;
+      let usernamesFound = 0;
+      let messagesFound = 0;
+
+      commentNodes.forEach((node) => {
+        const nicknameEl = nicknameSel ? node.querySelector(nicknameSel) : null;
+        const usernameEl = usernameSel ? node.querySelector(usernameSel) : null;
+        const messageEl = messageSel ? node.querySelector(messageSel) : null;
+        const profilePicEl = profilePicSel ? node.querySelector(profilePicSel) : null;
+
+        const nickname = nicknameEl ? nicknameEl.textContent.trim() : "";
+        const username = usernameEl ? usernameEl.textContent.trim() : "";
+        const message = messageEl ? messageEl.textContent.trim() : "";
+        
+        let profilePic = "";
+        if (profilePicEl) {
+          profilePic = profilePicEl.getAttribute("src") || 
+                       profilePicEl.getAttribute("data-src") || 
+                       profilePicEl.src || "";
+          profilePic = profilePic.trim();
+        }
+
+        if (nickname) nicknamesFound++;
+        if (username) usernamesFound++;
+        if (message) messagesFound++;
+        if (profilePic) avatarsFound++;
+
+        results.push({
+          nickname,
+          username,
+          message,
+          profilePic,
+          elementsFound: {
+            nickname: !!nicknameEl,
+            username: !!usernameEl,
+            message: !!messageEl,
+            profilePic: !!profilePicEl
+          }
+        });
+      });
+
+      // Update Diagnostics calculations
+      const avatarPct = totalComments > 0 ? Math.round((avatarsFound / totalComments) * 100) : 0;
+      const diagAvatar = document.getElementById('diag-profile-pic');
+      document.getElementById('diag-profile-pic-pct').textContent = avatarPct + "%";
+      document.getElementById('diag-profile-pic-sub').textContent = `${avatarsFound} of ${totalComments} profile pics`;
+      diagAvatar.className = avatarPct > 70 ? "diag-card success" : (avatarPct > 30 ? "diag-card warning" : "diag-card error");
+
+      const textPct = totalComments > 0 ? Math.round((messagesFound / totalComments) * 100) : 0;
+      const diagText = document.getElementById('diag-text-quality');
+      document.getElementById('diag-text-quality-pct').textContent = textPct + "%";
+      document.getElementById('diag-text-quality-sub').textContent = `${messagesFound} of ${totalComments} messages`;
+      diagText.className = textPct > 80 ? "diag-card success" : (textPct > 40 ? "diag-card warning" : "diag-card error");
+
+      // Render tab contents
+      renderFeedView(results);
+      renderTableView(results);
+    }
+
+    function renderFeedView(results) {
+      const container = document.getElementById('feed-container');
+      container.innerHTML = "";
+
+      if (results.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+              <p style="font-weight:600; font-size: 0.9rem; margin-bottom: 0.25rem;">No Comments Extracted</p>
+              <p style="font-size:0.75rem;">Adjust your selectors. The commentNode selector might not match elements in the document.</p>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      results.forEach(item => {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'feed-item';
+
+        // Avatar
+        let avatarHTML = `<div class="avatar-placeholder">${(item.nickname || item.username || "?").charAt(0).toUpperCase()}</div>`;
+        if (item.profilePic) {
+          avatarHTML = `<img src="${item.profilePic}" class="avatar-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="avatar-placeholder" style="display:none;">${(item.nickname || item.username || "?").charAt(0).toUpperCase()}</div>`;
+        }
+
+        itemEl.innerHTML = `
+          ${avatarHTML}
+          <div class="feed-content">
+            <div class="feed-header">
+              <span class="feed-nickname">${escapeHTML(item.nickname) || '<i style="color:var(--text-dim);">No Nickname</i>'}</span>
+              <span class="feed-username">${item.username ? '@' + escapeHTML(item.username) : ''}</span>
+            </div>
+            <div class="feed-message">${escapeHTML(item.message) || '<i style="color:var(--text-dim);">(Empty message body)</i>'}</div>
+          </div>
+        `;
+        container.appendChild(itemEl);
+      });
+    }
+
+    function renderTableView(results) {
+      const tbody = document.getElementById('table-body');
+      tbody.innerHTML = "";
+
+      if (results.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" class="empty-state">
+              <div class="empty-state" style="padding: 2rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <p style="font-size:0.75rem;">No extracted comment data rows.</p>
+              </div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      results.forEach((item, index) => {
+        const tr = document.createElement('tr');
+        
+        // Build status checks
+        const statusChips = [];
+        statusChips.push(item.elementsFound.nickname ? '<span class="badge-status present">Nick OK</span>' : '<span class="badge-status missing">Nick X</span>');
+        statusChips.push(item.elementsFound.username ? '<span class="badge-status present">User OK</span>' : '<span class="badge-status missing">User X</span>');
+        statusChips.push(item.elementsFound.message ? '<span class="badge-status present">Msg OK</span>' : '<span class="badge-status missing">Msg X</span>');
+        statusChips.push(item.elementsFound.profilePic ? '<span class="badge-status present">Pic OK</span>' : '<span class="badge-status missing">Pic X</span>');
+
+        // Avatar column
+        let avatarHTML = `<div class="avatar-placeholder">${(item.nickname || item.username || "?").charAt(0).toUpperCase()}</div>`;
+        if (item.profilePic) {
+          avatarHTML = `<img src="${item.profilePic}" class="avatar-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="avatar-placeholder" style="display:none;">${(item.nickname || item.username || "?").charAt(0).toUpperCase()}</div>`;
+        }
+
+        tr.innerHTML = `
+          <td style="color: var(--text-dim);">${index + 1}</td>
+          <td>
+            <div class="avatar-cell">
+              ${avatarHTML}
+              <span style="font-weight: 600;">${escapeHTML(item.nickname) || '<span style="color:var(--text-dim);font-weight:400;font-style:italic;">None</span>'}</span>
+            </div>
+          </td>
+          <td>${item.username ? '@' + escapeHTML(item.username) : '<span style="color:var(--text-dim);font-style:italic;">None</span>'}</td>
+          <td>${escapeHTML(item.message) || '<span style="color:var(--text-dim);font-style:italic;">(Blank)</span>'}</td>
+          <td>
+            <div style="display:flex; gap: 0.35rem; flex-wrap: wrap;">
+              ${statusChips.join('')}
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function switchTab(viewId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.view-pane').forEach(pane => pane.classList.remove('active'));
+
+      if (viewId === 'feed') {
+        document.getElementById('btn-tab-feed').classList.add('active');
+        document.getElementById('pane-feed').classList.add('active');
+      } else {
+        document.getElementById('btn-tab-table').classList.add('active');
+        document.getElementById('pane-table').classList.add('active');
+      }
+    }
+
+    // Escape script/html tags from injected content
+    function escapeHTML(str) {
+      if (!str) return "";
+      return str.replace(/[&<>'"]/g, 
+        tag => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          "'": '&#39;',
+          '"': '&quot;'
+        }[tag] || tag)
+      );
+    }
+  </script>
+</body>
+</html>

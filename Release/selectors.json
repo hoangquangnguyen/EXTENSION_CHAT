@@ -1,0 +1,38 @@
+{
+  "presets": {
+    "tiktok": {
+      "name": "TikTok Live",
+      "selectors": {
+        "chatContainer": "[data-e2e=\"live-chat-container\"], .webcast-chatroom___list, .webcast-chatroom___message-list, [data-testid='chatroom-message-list']",
+        "commentNode": "[data-e2e=\"chat-message\"], .webcast-chatroom___item, .webcast-chatroom___message-item, [data-testid='chatroom-message-item']",
+        "nickname": "[data-e2e=\"message-owner-name\"], .webcast-chatroom___nickname, .webcast-chatroom___author-name, .nickname",
+        "username": "[data-e2e=\"message-owner-name\"], .webcast-chatroom___username, .webcast-chatroom___author-handle, .username",
+        "message": "div:nth-child(2) > div:nth-child(2), .webcast-chatroom___content, .webcast-chatroom___message-text, .content",
+        "profilePic": ""
+      }
+    },
+    "shopee_sh": {
+      "name": "Shopee SH",
+      "selectors": {
+        "chatContainer": ".shopee-live-chat-list, .chat-list, div.relative.h-full.w-full.flex-col.overflow-hidden > div.flex-1, .flex-1.overflow-y-auto.space-y-3.mb-4.pr-2, .flex-1.overflow-y-auto.space-y-3",
+        "commentNode": ".shopee-live-chat-item, .chat-item, .chat-message-item, .group.flex.flex-col.p-3.rounded-2xl",
+        "nickname": ".shopee-live-chat-nickname, .nickname, .name, span.font-bold, span.text-slate-300, .text-xs.font-bold.text-slate-300",
+        "username": ".shopee-live-chat-username, .username, span.font-bold, span.text-slate-300, .text-xs.font-bold.text-slate-300",
+        "message": ".shopee-live-chat-message, .message, .content, span.break-words, p.leading-relaxed, p.text-slate-200",
+        "profilePic": ""
+      }
+    },
+    "shopee_live": {
+      "name": "Shopee Live",
+      "selectors": {
+        "chatContainer": ".ReactVirtualized__Grid__innerScrollContainer, div[role=\"rowgroup\"]",
+        "commentNode": "[class*=\"comment-container_\"]",
+        "nickname": "[class*=\"user-name_\"]",
+        "username": "[class*=\"user-name_\"]",
+        "message": "[class*=\"message-content_\"]",
+        "profilePic": ""
+      }
+    }
+  },
+  "default": "tiktok"
+}
