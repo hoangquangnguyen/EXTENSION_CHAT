@@ -1,7 +1,7 @@
 # Đặc Tả Cấu Trúc Dữ Liệu Lưu Trữ (Storage Schema Specification)
 
-## Tổng Quan (Overview)
-Tiện ích mở rộng sử dụng `chrome.storage.local` làm cơ chế lưu trữ bền vững (persistent local storage). Toàn bộ trạng thái phiên làm việc, thiết lập kết nối mạng, định nghĩa bộ chọn CSS và nhật ký lỗi kết nối đều được quản lý tại đây. Dữ liệu được đồng bộ bất đồng bộ qua API `chrome.storage.local.get` và `chrome.storage.local.set`, đồng thời phát sinh sự kiện qua `chrome.storage.onChanged` để các thành phần phản ứng kịp thời.
+## Purpose
+Tiện ích mở rộng sử dụng `chrome.storage.local` làm cơ chế lưu trữ bền vững (persistent local storage), quản lý trạng thái phiên làm việc đa tab (`tab_sessions`), thiết lập kết nối mạng (`connection_settings`), định nghĩa bộ chọn CSS (`selector_presets`, `selectors`) và nhật ký lỗi kết nối (`last_connection_error`).
 
 ---
 
@@ -58,12 +58,12 @@ Tiện ích mở rộng sử dụng `chrome.storage.local` làm cơ chế lưu t
 
 ---
 
-## Yêu Cầu Chức Năng (Requirements & Scenarios)
+## Requirements
 
-### Yêu Cầu 1: Đảm Bảo Tính Toàn Vẹn Cấu Trúc Khi Lưu
-Khi Popup hoặc Background cập nhật một khóa trong `chrome.storage.local`, hệ thống PHẢI giữ nguyên các khóa khác và không làm mất dữ liệu các phiên tab khác.
+### Requirement: Đảm Bảo Tính Toàn Vẹn Cấu Trúc Khi Lưu
+Khi Popup hoặc Background cập nhật một khóa trong `chrome.storage.local`, hệ thống MUST giữ nguyên các khóa khác và không làm mất dữ liệu các phiên tab khác.
 
-#### Kịch Bản: Cập nhật cấu hình phiên cho Tab A
+#### Scenario: Cập nhật cấu hình phiên cho Tab A
 * **GIVEN**: Đang có phiên của Tab A và Tab B trong `tab_sessions`.
 * **WHEN**: Người dùng lưu thay đổi cấu hình tại Tab A.
 * **THEN**: Dữ liệu phiên của Tab B trong `tab_sessions` được giữ nguyên nguyên vẹn.
@@ -71,11 +71,26 @@ Khi Popup hoặc Background cập nhật một khóa trong `chrome.storage.local
 
 ---
 
-### Yêu Cầu 2: Tự Động Di Trú (Migration) Tên Preset Cũ
-Hệ thống PHẢI tự động chuyển đổi các preset cũ trong bộ nhớ (ví dụ: `"shopee"` đổi thành `"shopee_sh"`) để tương thích với các phiên bản tiện ích mới.
+### Requirement: Tự Động Di Trú (Migration) Tên Preset Cũ
+Hệ thống MUST tự động chuyển đổi các preset cũ trong bộ nhớ (ví dụ: `"shopee"` đổi thành `"shopee_sh"`) để tương thích với các phiên bản tiện ích mới.
 
-#### Kịch Bản: Phát hiện phiên bản preset cũ trong storage
+#### Scenario: Phát hiện phiên bản preset cũ trong storage
 * **GIVEN**: `chrome.storage.local` chứa khóa preset `presets.shopee`.
 * **WHEN**: Hàm `loadPresetsAndInit()` khởi chạy trong Popup.
 * **THEN**: Tự động đổi tên khóa thành `shopee_sh` với tên hiển thị là `"Shopee SH"`.
 * **AND**: Cập nhật lại `chrome.storage.local` để đảm bảo tính nhất quán của hệ thống.
+
+### Requirement: Lưu Trữ Cấu Hình Chống Trùng Lặp Bình Luận
+Hệ thống MUST lưu trữ và duy trì cấu hình chống trùng lặp bình luận bao gồm trạng thái kích hoạt (`dedup_enabled`) và thời gian cửa sổ lọc (`dedup_window_seconds`) trong `chrome.storage.local`.
+
+#### Scenario: Khởi tạo giá trị mặc định cho cấu hình chống trùng
+* **GIVEN**: Tiện ích vừa được cài đặt hoặc khởi chạy lần đầu với cấu hình chưa có trường chống trùng.
+* **WHEN**: Background Service Worker hoặc Popup nạp cấu hình `connection_settings` hoặc phiên tab `tab_sessions`.
+* **THEN**: Trường `dedup_enabled` được mặc định là `true`.
+* **AND**: Trường `dedup_window_seconds` được mặc định là `30` (giây).
+
+#### Scenario: Lưu và cách ly cấu hình chống trùng theo từng phiên tab
+* **GIVEN**: Người dùng thay đổi thiết lập chống trùng lặp tại Tab A (ví dụ: `dedup_enabled = false` hoặc `dedup_window_seconds = 15`).
+* **WHEN**: Người dùng lưu cấu hình trên giao diện Popup.
+* **THEN**: Dữ liệu phiên của Tab A trong `tab_sessions[TabA.id]` được cập nhật với thiết lập riêng tương ứng.
+* **AND**: Dữ liệu phiên của các Tab khác và cấu hình mặc định toàn cục không bị ghi đè sai lệch.

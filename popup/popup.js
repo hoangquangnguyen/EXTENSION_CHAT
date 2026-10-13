@@ -48,7 +48,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   const inputPort = document.getElementById("input-port");
   const inputPath = document.getElementById("input-path");
   const inputAiId = document.getElementById("input-ai-id");
+  const inputDedupEnabled = document.getElementById("input-dedup-enabled");
+  const inputDedupWindow = document.getElementById("input-dedup-window");
   const btnFetchAiList = document.getElementById("btn-fetch-ai-list");
+  const aiPickerModal = document.getElementById("ai-picker-modal");
+  const btnCloseAiModal = document.getElementById("btn-close-ai-modal");
+  const aiModalList = document.getElementById("ai-modal-list");
 
   // Selector Inputs
   const selContainer = document.getElementById("sel-container");
@@ -488,6 +493,21 @@ document.addEventListener("DOMContentLoaded", async () => {
         inputAiId.value = aiId;
       }
 
+      // Fill dedup inputs
+      const dedupEnabledVal = (tabSession && tabSession.dedup_enabled !== undefined)
+        ? tabSession.dedup_enabled
+        : (settings.dedup_enabled !== undefined ? settings.dedup_enabled : true);
+      const dedupWindowVal = (tabSession && tabSession.dedup_window_seconds !== undefined)
+        ? tabSession.dedup_window_seconds
+        : (settings.dedup_window_seconds !== undefined ? settings.dedup_window_seconds : 30);
+
+      if (inputDedupEnabled) {
+        inputDedupEnabled.checked = !!dedupEnabledVal;
+      }
+      if (inputDedupWindow) {
+        inputDedupWindow.value = dedupWindowVal;
+      }
+
       // Fill selector inputs
       selContainer.value = selectors.chatContainer || presetSelectors.chatContainer;
       selNode.value = selectors.commentNode || presetSelectors.commentNode;
@@ -546,6 +566,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Test Connection handler
   if (btnTestConn && testResult) {
     btnTestConn.addEventListener("click", () => {
+      if (panelConfig && !panelConfig.classList.contains("active")) {
+        if (btnConfig) btnConfig.classList.add("active");
+        panelConfig.classList.add("active");
+      }
+
       const protocol = inputProtocol.value.trim();
       const host = inputHost.value.trim() || "127.0.0.1";
       const port = inputPort.value.trim() || "3003";
@@ -623,6 +648,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Test Scraper DOM handler
   if (btnTestScrape && scrapeTestResult) {
     btnTestScrape.addEventListener("click", () => {
+      if (panelSelectors && !panelSelectors.classList.contains("active")) {
+        if (btnSelectors) btnSelectors.classList.add("active");
+        panelSelectors.classList.add("active");
+      }
+
       const selectors = {
         chatContainer: selContainer.value.trim(),
         commentNode: selNode.value.trim(),
@@ -849,6 +879,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  // Close AI Picker Modal handlers
+  if (btnCloseAiModal && aiPickerModal) {
+    btnCloseAiModal.addEventListener("click", () => {
+      aiPickerModal.classList.add("hidden");
+    });
+  }
+
+  if (aiPickerModal) {
+    aiPickerModal.addEventListener("click", (e) => {
+      if (e.target === aiPickerModal) {
+        aiPickerModal.classList.add("hidden");
+      }
+    });
+  }
+
   // Fetch AI List online from Server handler
   if (btnFetchAiList) {
     btnFetchAiList.addEventListener("click", async () => {
@@ -858,6 +903,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       
       btnFetchAiList.disabled = true;
       btnFetchAiList.textContent = "⏳...";
+      if (testResult) {
+        testResult.className = "test-result hidden";
+        testResult.textContent = "";
+      }
 
       try {
         const res = await fetch(fetchUrl);
@@ -866,16 +915,53 @@ document.addEventListener("DOMContentLoaded", async () => {
         const list = data.instances || [];
         
         if (list.length === 0) {
-          alert("Server chưa có AI Auto-Reply nào.");
+          if (testResult) {
+            testResult.className = "test-result error";
+            testResult.textContent = "⚠️ No AI Auto-Reply instances found on server.";
+          }
         } else {
-          const names = list.map(i => `• [${i.id}] ${i.name} (${i.is_active ? 'BẬT' : 'TẮT'})`).join('\n');
-          const chosen = prompt(`Chọn AI Auto-Reply bằng cách nhập ID:\n\n${names}`, list[0].id);
-          if (chosen) {
-            inputAiId.value = chosen.trim();
+          if (aiModalList && aiPickerModal) {
+            aiModalList.innerHTML = "";
+            list.forEach(inst => {
+              const card = document.createElement("div");
+              card.className = "ai-card";
+              card.setAttribute("data-id", inst.id);
+
+              const header = document.createElement("div");
+              header.className = "ai-card-header";
+
+              const nameSpan = document.createElement("span");
+              nameSpan.textContent = inst.name || inst.id;
+
+              const statusBadge = document.createElement("span");
+              statusBadge.className = inst.is_active ? "badge-active" : "badge-inactive";
+              statusBadge.textContent = inst.is_active ? "ACTIVE" : "INACTIVE";
+
+              header.appendChild(nameSpan);
+              header.appendChild(statusBadge);
+
+              const idSpan = document.createElement("div");
+              idSpan.className = "ai-card-id";
+              idSpan.textContent = `ID: ${inst.id}`;
+
+              card.appendChild(header);
+              card.appendChild(idSpan);
+
+              card.addEventListener("click", () => {
+                if (inputAiId) inputAiId.value = inst.id;
+                aiPickerModal.classList.add("hidden");
+              });
+
+              aiModalList.appendChild(card);
+            });
+            aiPickerModal.classList.remove("hidden");
           }
         }
       } catch (err) {
-        alert(`Không thể kết nối đến server để lấy danh sách AI: ${err.message}`);
+        if (testResult) {
+          testResult.className = "test-result error";
+          testResult.textContent = `❌ Failed to fetch AI instances: ${err.message || "Network error"}`;
+        }
       } finally {
         btnFetchAiList.disabled = false;
         btnFetchAiList.textContent = "🔄 Load AI";
@@ -885,12 +971,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Save Config handler (Multi-Tab isolated)
   btnSave.addEventListener("click", async () => {
+    const dedupEnabled = inputDedupEnabled ? inputDedupEnabled.checked : true;
+    const dedupWindowSeconds = inputDedupWindow ? Math.max(1, parseInt(inputDedupWindow.value, 10) || 30) : 30;
+
     const connectionSettings = {
       protocol: inputProtocol.value.trim() || "http",
       host: inputHost.value.trim() || "127.0.0.1",
       port: inputPort.value.trim() || "3003",
       path: inputPath.value.trim() || "/api/chat/tiktok-comment",
-      ai_reply_id: inputAiId ? inputAiId.value.trim() || "default" : "default"
+      ai_reply_id: inputAiId ? inputAiId.value.trim() || "default" : "default",
+      dedup_enabled: dedupEnabled,
+      dedup_window_seconds: dedupWindowSeconds
     };
 
     const selectors = {
@@ -914,6 +1005,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           connection_settings: connectionSettings,
           selectors: selectors,
           active_preset: activePresetKey,
+          dedup_enabled: dedupEnabled,
+          dedup_window_seconds: dedupWindowSeconds,
           updatedAt: Date.now()
         };
         sessions[currentTabId] = tabConfig;
@@ -950,7 +1043,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local && currentTabId) {
       const data = await chrome.storage.local.get(["tab_sessions", "connection_settings", "selectors"]);
       const sessions = data.tab_sessions || {};
-      const globalConn = data.connection_settings || { host: "127.0.0.1", port: "3003", protocol: "http", path: "/api/chat/tiktok-comment", ai_reply_id: "default" };
+      const globalConn = data.connection_settings || { 
+        host: "127.0.0.1", 
+        port: "3003", 
+        protocol: "http", 
+        path: "/api/chat/tiktok-comment", 
+        ai_reply_id: "default",
+        dedup_enabled: true,
+        dedup_window_seconds: 30
+      };
+
+      const dedupEnabled = inputDedupEnabled ? inputDedupEnabled.checked : (globalConn.dedup_enabled !== undefined ? globalConn.dedup_enabled : true);
+      const dedupWindowSeconds = inputDedupWindow ? Math.max(1, parseInt(inputDedupWindow.value, 10) || 30) : (globalConn.dedup_window_seconds || 30);
 
       const currentConfig = sessions[currentTabId] || {
         tabId: currentTabId,
@@ -960,7 +1064,9 @@ document.addEventListener("DOMContentLoaded", async () => {
           host: inputHost.value.trim() || "127.0.0.1",
           port: inputPort.value.trim() || "3003",
           path: inputPath.value.trim() || "/api/chat/tiktok-comment",
-          ai_reply_id: inputAiId ? inputAiId.value.trim() || "default" : "default"
+          ai_reply_id: inputAiId ? inputAiId.value.trim() || "default" : "default",
+          dedup_enabled: dedupEnabled,
+          dedup_window_seconds: dedupWindowSeconds
         },
         selectors: {
           chatContainer: selContainer.value.trim() || DEFAULT_SELECTORS.chatContainer,
@@ -970,10 +1076,15 @@ document.addEventListener("DOMContentLoaded", async () => {
           message: selMessage.value.trim() || DEFAULT_SELECTORS.message,
           profilePic: selProfile.value.trim() || DEFAULT_SELECTORS.profilePic
         },
-        active_preset: activePresetKey
+        active_preset: activePresetKey,
+        dedup_enabled: dedupEnabled,
+        dedup_window_seconds: dedupWindowSeconds
       };
 
       currentConfig.monitoring_active = active;
+      if (currentConfig.dedup_enabled === undefined) currentConfig.dedup_enabled = dedupEnabled;
+      if (currentConfig.dedup_window_seconds === undefined) currentConfig.dedup_window_seconds = dedupWindowSeconds;
+
       sessions[currentTabId] = currentConfig;
       await chrome.storage.local.set({ tab_sessions: sessions });
 

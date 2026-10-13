@@ -303,7 +303,7 @@ EXTENSION_CHAT/
 * **Ngôn ngữ tài liệu & Giao diện**:
   - Tài liệu kỹ thuật, đặc tả OpenSpec, và báo cáo dùng **Tiếng Việt**.
   - Tên biến, mã nguồn, commit message dùng **Tiếng Anh**.
-  - Các thông báo trong giao diện Popup hiện tại đang dùng song ngữ (chủ đạo Tiếng Anh với một số thông báo prompt Tiếng Việt).
+  - Toàn bộ giao diện Popup (nhãn, placeholder, tooltip, modal, thông báo lỗi) sử dụng **100% Tiếng Anh** thống nhất.
 
 ---
 
@@ -330,11 +330,11 @@ EXTENSION_CHAT/
    - *Nguy cơ*: Script được nạp vào mọi trang web người dùng mở, dù có kiểm tra logic nhưng vẫn tiêu tốn tài nguyên không cần thiết ngoài TikTok và Shopee.
 3. **URL Cập Nhật GitHub Bị Gắn Cứng (Hardcoded URL)**:
    - *Mô tả*: URL `https://raw.githubusercontent.com/hoangquangnguyen/EXTENSION_CHAT/master/selectors.json` được gán cứng trong `popup.js`.
-   - *Nguy cơ*: Khó thay đổi khi đổi nhánh, đổi tên repository hoặc chuyển sang môi trường nội bộ.
+   - *Nguy cơ*: Khó thay đổi khi đổi nhánh, đổi tên repository hoặc chuyển sang môi trường nội bộ (dự án quyết định giữ nguyên theo yêu cầu hiện tại).
 4. **Thiếu Bộ Kiểm Thử Tự Động (No Automated Tests)**:
    - *Mô tả*: Không có unit test cho logic trích xuất hoặc kiểm tra bộ đệm hàng đợi FIFO.
-5. **Giao Diện Trộn Lẫn Ngôn Ngữ**:
-   - *Mô tả*: Popup UI có nhãn bằng Tiếng Anh nhưng các hộp thoại cảnh báo `alert` / `prompt` (như khi lấy danh sách AI) viết bằng Tiếng Việt.
+   - *Nguy cơ*: Kiểm thử phụ thuộc vào thao tác thủ công qua `selector-tester.html`.
+*(Ghi chú: Nợ kỹ thuật về hộp thoại blocking alert/prompt và trộn lẫn ngôn ngữ trên Popup đã được giải quyết toàn diện trong OpenSpec change `resolve-popup-technical-debt`).*
 
 ---
 

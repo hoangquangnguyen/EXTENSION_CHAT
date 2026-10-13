@@ -1,6 +1,6 @@
 # Đặc Tả Kiến Trúc Tổng Thể (System Architecture Specification)
 
-## Tổng Quan (Overview)
+## Purpose
 LIVE Relayer là tiện ích mở rộng trình duyệt (Chrome Extension) tuân thủ chuẩn **Manifest V3 (MV3)**, phục vụ việc tự động trích xuất các bình luận trực tiếp (live chat) từ các nền tảng phát sóng trực tiếp (TikTok Live, Shopee Live) và chuyển tiếp về một máy chủ cục bộ hoặc từ xa qua giao thức WebSocket hoặc HTTP POST.
 
 Hệ thống được chia thành 4 phân hệ chính:
@@ -55,12 +55,12 @@ flowchart TD
 
 ---
 
-## Yêu Cầu Chức Năng (Requirements & Scenarios)
+## Requirements
 
-### Yêu Cầu 1: Khởi Tạo Môi Trường Manifest V3 và Dữ Liệu Ban Đầu
-Hệ thống PHẢI khởi tạo các giá trị cấu hình mặc định trong `chrome.storage.local` khi cài đặt tiện ích mở rộng lần đầu.
+### Requirement: Khởi Tạo Môi Trường Manifest V3 và Dữ Liệu Ban Đầu
+Hệ thống MUST khởi tạo các giá trị cấu hình mặc định trong `chrome.storage.local` khi cài đặt tiện ích mở rộng lần đầu.
 
-#### Kịch Bản: Khởi tạo khi cài đặt tiện ích
+#### Scenario: Khởi tạo khi cài đặt tiện ích
 * **GIVEN**: Tiện ích mở rộng được cài đặt lần đầu hoặc cập nhật (`chrome.runtime.onInstalled`).
 * **WHEN**: Sự kiện `onInstalled` được kích hoạt.
 * **THEN**: Service worker nạp tệp `selectors.json`, lưu `selector_presets`, `selectors` mặc định (`tiktok`), và `active_preset` vào `chrome.storage.local`.
@@ -69,16 +69,16 @@ Hệ thống PHẢI khởi tạo các giá trị cấu hình mặc định trong
 
 ---
 
-### Yêu Cầu 2: Quản Lý Vòng Đời Offscreen Document Theo Nhu Cầu
-Vì Service Worker trong Manifest V3 bị ngắt kết nối định kỳ và không hỗ trợ trực tiếp DOM hoặc duy trì kết nối WebSocket bền bỉ, hệ thống PHẢI sử dụng `chrome.offscreen` document và CHỈ mở tài liệu này khi có ít nhất một tab đang kích hoạt chế độ giám sát (`monitoring_active`).
+### Requirement: Quản Lý Vòng Đời Offscreen Document Theo Nhu Cầu
+Vì Service Worker trong Manifest V3 bị ngắt kết nối định kỳ và không hỗ trợ trực tiếp DOM hoặc duy trì kết nối WebSocket bền bỉ, hệ thống MUST sử dụng `chrome.offscreen` document và CHỈ mở tài liệu này khi có ít nhất một tab đang kích hoạt chế độ giám sát (`monitoring_active`).
 
-#### Kịch Bản: Tự động khởi tạo Offscreen Document khi có tab bật giám sát
+#### Scenario: Tự động khởi tạo Offscreen Document khi có tab bật giám sát
 * **GIVEN**: Không có tab nào đang kích hoạt cào dữ liệu và Offscreen Document chưa được mở.
 * **WHEN**: Người dùng bật công tắc giám sát (`monitoring_active = true`) trên bất kỳ tab livestream hợp lệ nào.
 * **THEN**: Background Service Worker phát hiện trạng thái thay đổi qua `chrome.storage.onChanged` và gọi `chrome.offscreen.createDocument`.
 * **AND**: Thiết lập lý do mở tài liệu là `DOM_SCRAPING` và mục đích chuyển tiếp bình luận về máy chủ.
 
-#### Kịch Bản: Tự động đóng Offscreen Document khi không còn tab nào hoạt động
+#### Scenario: Tự động đóng Offscreen Document khi không còn tab nào hoạt động
 * **GIVEN**: Offscreen Document đang chạy và có một hoặc nhiều tab đang giám sát.
 * **WHEN**: Tất cả các tab đang giám sát bị tắt công tắc giám sát HOẶC các tab trình duyệt đó bị đóng.
 * **THEN**: Background Service Worker kiểm tra thấy `isAnyTabMonitoring() === false`.
@@ -86,16 +86,16 @@ Vì Service Worker trong Manifest V3 bị ngắt kết nối định kỳ và kh
 
 ---
 
-### Yêu Cầu 3: Đồng Bộ Cấu Hình Giữa Background và Offscreen Document
-Hệ thống PHẢI đảm bảo Offscreen Document luôn nhận được cấu hình kết nối mới nhất ngay khi được nạp hoặc khi người dùng lưu thay đổi.
+### Requirement: Đồng Bộ Cấu Hình Giữa Background và Offscreen Document
+Hệ thống MUST đảm bảo Offscreen Document luôn nhận được cấu hình kết nối mới nhất ngay khi được nạp hoặc khi người dùng lưu thay đổi.
 
-#### Kịch Bản: Đồng bộ cấu hình khi Offscreen khởi động
+#### Scenario: Đồng bộ cấu hình khi Offscreen khởi động
 * **GIVEN**: Offscreen Document vừa được tải xong (`offscreen.html`).
 * **WHEN**: `offscreen.js` gửi thông điệp `OFFSCREEN_LOADED` lên background.
 * **THEN**: Background Service Worker phản hồi lại bằng thông điệp `INIT_OFFSCREEN` kèm theo `connectionSettings` và `monitoringActive`.
 * **AND**: `offscreen.js` khởi tạo kết nối mạng tương ứng với giao thức đã chọn (`ws` hoặc `http`).
 
-#### Kịch Bản: Cập nhật cấu hình tức thời khi người dùng lưu trên Popup
+#### Scenario: Cập nhật cấu hình tức thời khi người dùng lưu trên Popup
 * **GIVEN**: Offscreen Document đang mở và đang hoạt động.
 * **WHEN**: Người dùng thay đổi thông số kết nối và nhấn "Save Config" trên Popup UI.
 * **THEN**: `chrome.storage.onChanged` bắt được sự kiện thay đổi `connection_settings`.

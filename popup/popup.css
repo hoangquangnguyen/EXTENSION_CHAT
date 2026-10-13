@@ -29,6 +29,7 @@ body {
   color: var(--text-main);
   padding: 12px;
   overflow-x: hidden;
+  scrollbar-gutter: stable;
 }
 
 /* Scrollbar styling */
@@ -354,7 +355,7 @@ label {
   font-weight: 500;
 }
 
-input[type="text"], select {
+input[type="text"], input[type="number"], select {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   color: var(--text-main);
@@ -365,9 +366,30 @@ input[type="text"], select {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-input[type="text"]:focus, select:focus {
+input[type="text"]:focus, input[type="number"]:focus, select:focus {
   border-color: var(--accent-cyan);
   box-shadow: 0 0 6px rgba(6, 182, 212, 0.2);
+}
+
+.dedup-row {
+  align-items: center;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-color);
+}
+
+.dedup-toggle-col {
+  flex: 1.4;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dedup-toggle-col input[type="checkbox"] {
+  accent-color: var(--accent-cyan);
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
 }
 
 /* Buttons */
@@ -575,10 +597,12 @@ input[type="text"]:focus, select:focus {
 
 /* Test Connection Result styling */
 .test-result {
+  width: 100%;
+  box-sizing: border-box;
   font-size: 0.75rem;
   padding: 8px 10px;
   border-radius: 6px;
-  line-height: 1.3;
+  line-height: 1.35;
   margin-top: 8px;
   animation: fadeIn 0.3s ease;
   word-break: break-word;
@@ -628,4 +652,139 @@ input[type="text"]:focus, select:focus {
 .diag-value.warning {
   color: var(--status-connecting);
 }
+
+/* AI Picker Modal styling */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(11, 15, 25, 0.85);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-content {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  width: 100%;
+  max-height: 480px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
+  background-color: rgba(17, 24, 39, 0.6);
+}
+
+.modal-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.modal-close-btn:hover {
+  color: var(--accent-pink);
+  background-color: rgba(244, 63, 94, 0.1);
+}
+
+.modal-body {
+  padding: 10px;
+  overflow-y: auto;
+  max-height: 380px;
+}
+
+.ai-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.ai-card:hover {
+  border-color: var(--accent-cyan);
+  background-color: rgba(6, 182, 212, 0.08);
+  transform: translateY(-1px);
+}
+
+.ai-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.ai-card-id {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
+.badge-active {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: var(--status-connected);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.badge-inactive {
+  background-color: rgba(107, 114, 128, 0.2);
+  color: var(--status-disconnected);
+  border: 1px solid rgba(107, 114, 128, 0.4);
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.ai-empty-notice {
+  text-align: center;
+  padding: 16px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
 

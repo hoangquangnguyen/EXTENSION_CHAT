@@ -80,12 +80,22 @@
         <div class="form-group row" style="align-items: flex-end; gap: 6px;">
           <div class="form-col" style="flex: 1.5;">
             <label for="input-ai-id">AI Auto-Reply ID</label>
-            <input type="text" id="input-ai-id" placeholder="default hoặc ID cụ thể (VD: ai-fashion)">
+            <input type="text" id="input-ai-id" placeholder="default or custom ID (e.g. ai-fashion)">
           </div>
           <div class="form-col" style="flex: 0.8;">
-            <button type="button" id="btn-fetch-ai-list" class="btn-secondary" style="height: 28px; font-size: 0.65rem; padding: 0 4px; display: flex; align-items: center; justify-content: center; gap: 2px; width: 100%;" title="Lấy danh sách AI từ Server">
+            <button type="button" id="btn-fetch-ai-list" class="btn-secondary" style="height: 28px; font-size: 0.65rem; padding: 0 4px; display: flex; align-items: center; justify-content: center; gap: 2px; width: 100%;" title="Fetch AI Auto-Reply list from server">
               🔄 Load AI
             </button>
+          </div>
+        </div>
+        <div class="form-group row dedup-row" style="align-items: center; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-color);">
+          <div class="form-col dedup-toggle-col" style="flex: 1.4; display: flex; align-items: center; gap: 6px;">
+            <input type="checkbox" id="input-dedup-enabled" checked style="cursor: pointer;">
+            <label for="input-dedup-enabled" style="margin-bottom: 0; cursor: pointer;" title="Suppress duplicate comments from the same user within the cooldown period">Filter Duplicate Comments</label>
+          </div>
+          <div class="form-col" style="flex: 1;">
+            <label for="input-dedup-window" title="Cooldown duration in seconds">Cooldown (s)</label>
+            <input type="number" id="input-dedup-window" min="1" max="300" value="30" placeholder="30">
           </div>
         </div>
         <div id="test-result" class="test-result hidden"></div>
@@ -202,6 +212,23 @@
         </div>
       </div>
     </section>
+
+    <!-- AI Instance Picker Modal -->
+    <div id="ai-picker-modal" class="modal-overlay hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="modal-title">
+            <span>🤖 Select AI Instance</span>
+          </div>
+          <button type="button" id="btn-close-ai-modal" class="modal-close-btn" title="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="ai-modal-list" class="ai-modal-list">
+            <!-- Dynamic AI cards -->
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
   <script src="popup.js"></script>
 </body>

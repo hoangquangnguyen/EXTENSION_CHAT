@@ -21,7 +21,9 @@
     tabId: null,
     ai_reply_id: "default",
     monitoring_active: false,
-    selectors: { ...DEFAULT_SELECTORS }
+    selectors: { ...DEFAULT_SELECTORS },
+    dedup_enabled: true,
+    dedup_window_seconds: 30
   };
 
   let activeSelectors = { ...DEFAULT_SELECTORS };
@@ -29,6 +31,12 @@
   let observer = null;
   let checkerInterval = null;
   let lastObservedElement = null;
+
+  // Deduplication state and cache
+  let dedupEnabled = true;
+  let dedupWindowSeconds = 30;
+  const dedupCache = new Map(); // fingerprint -> timestamp (ms)
+  const MAX_DEDUP_CACHE_SIZE = 500;
 
   console.log("TikTok Chat Extension: Multi-Tab Content Script loaded.");
 
@@ -38,6 +46,94 @@
       return !!chrome.runtime && !!chrome.runtime.id;
     } catch (e) {
       return false;
+    }
+  }
+
+  // Generate deterministic fingerprint for user and message
+  function getCommentFingerprint(author, message) {
+    const safeAuthor = (author || "").trim().toLowerCase();
+    const safeMessage = (message || "").trim().toLowerCase();
+    return `${safeAuthor}:::${safeMessage}`;
+  }
+
+  // Evict expired entries and enforce max capacity bounds
+  function cleanDedupCache(now, windowMs) {
+    for (const [key, timestamp] of dedupCache.entries()) {
+      if (now - timestamp >= windowMs) {
+        dedupCache.delete(key);
+      }
+    }
+    while (dedupCache.size >= MAX_DEDUP_CACHE_SIZE) {
+      const oldestKey = dedupCache.keys().next().value;
+      if (oldestKey !== undefined) {
+        dedupCache.delete(oldestKey);
+      } else {
+        break;
+      }
+    }
+  }
+
+  // Check if a comment is a duplicate within cooldown window
+  function isDuplicateComment(author, message) {
+    if (!dedupEnabled) return false;
+    const now = Date.now();
+    const windowMs = Math.max(1, dedupWindowSeconds || 30) * 1000;
+    const fingerprint = getCommentFingerprint(author, message);
+
+    cleanDedupCache(now, windowMs);
+
+    const lastSeen = dedupCache.get(fingerprint);
+    if (lastSeen !== undefined && (now - lastSeen) < windowMs) {
+      return true;
+    }
+
+    dedupCache.set(fingerprint, now);
+    return false;
+  }
+
+  // Session-wide seen history cache (prevents re-scraping historical comments when scrolling)
+  const seenHistoryCache = new Set();
+  const MAX_SEEN_HISTORY_SIZE = 3000;
+
+  function addSeenHistory(fingerprint) {
+    if (!fingerprint) return;
+    if (seenHistoryCache.size >= MAX_SEEN_HISTORY_SIZE) {
+      const oldestKey = seenHistoryCache.values().next().value;
+      if (oldestKey !== undefined) {
+        seenHistoryCache.delete(oldestKey);
+      }
+    }
+    seenHistoryCache.add(fingerprint);
+  }
+
+  // Pre-mark all existing comment nodes in container when monitoring starts
+  function premarkExistingComments(container) {
+    if (!container || !activeSelectors.commentNode) return;
+    try {
+      const existingNodes = container.querySelectorAll(activeSelectors.commentNode);
+      let premarkedCount = 0;
+      for (const node of existingNodes) {
+        if (!node.hasAttribute("data-ext-parsed")) {
+          node.setAttribute("data-ext-parsed", "true");
+        }
+        const nicknameEl = activeSelectors.nickname ? node.querySelector(activeSelectors.nickname) : null;
+        const usernameEl = activeSelectors.username ? node.querySelector(activeSelectors.username) : null;
+        const messageEl = activeSelectors.message ? node.querySelector(activeSelectors.message) : null;
+
+        const nickname = nicknameEl ? nicknameEl.textContent.trim() : "";
+        const username = usernameEl ? usernameEl.textContent.trim() : "";
+        const message = messageEl ? messageEl.textContent.trim() : "";
+        const author = username || nickname;
+
+        if (author && message) {
+          const fp = getCommentFingerprint(author, message);
+          addSeenHistory(fp);
+          premarkedCount++;
+        }
+      }
+      console.log(`TikTok Chat Extension: Pre-marked ${premarkedCount} existing comment nodes in container.`);
+    } catch (e) {
+      console.warn("TikTok Chat Extension: Error pre-marking existing comments:", e);
     }
   }
 
@@ -79,6 +175,25 @@
       if (!message) {
         return;
       }
+
+      // Check user-comment deduplication
+      const authorIdentifier = username || nickname;
+      const fingerprint = getCommentFingerprint(authorIdentifier, message);
+
+      // 1. Check session-wide seen history (suppresses old comments re-mounted when scrolling)
+      if (seenHistoryCache.has(fingerprint)) {
+        console.log(`TikTok Chat Extension [Tab:${myTabConfig.tabId}] Suppressed historical comment re-mounted by scroll from "${authorIdentifier}": "${message}"`);
+        return;
+      }
+
+      // 2. Check user-comment deduplication within cooldown window
+      if (isDuplicateComment(authorIdentifier, message)) {
+        console.log(`TikTok Chat Extension [Tab:${myTabConfig.tabId}] Suppressed duplicate comment from "${authorIdentifier}": "${message}"`);
+        return;
+      }
+
+      // 3. Record in session-wide seen history
+      addSeenHistory(fingerprint);
 
       const payload = {
         nickname,
@@ -124,6 +239,9 @@
     }
 
     try {
+      // Pre-mark all existing comment nodes in container to freeze history
+      premarkExistingComments(container);
+
       observer = new MutationObserver((mutations) => {
         if (!isContextValid()) {
           stopMonitoring();
@@ -167,6 +285,8 @@
       console.log("TikTok Chat Extension: Monitoring stopped.");
     }
     lastObservedElement = null;
+    dedupCache.clear();
+    seenHistoryCache.clear();
   }
 
   // Handle periodic heartbeats to reattach the observer if container shifts
@@ -202,7 +322,7 @@
   }
 
   // Update extension state
-  function updateState(monitoring, selectors) {
+  function updateState(monitoring, selectors, dedupConfig) {
     monitoringActive = !!monitoring;
     if (selectors) {
       const cleanedSelectors = {};
@@ -212,6 +332,15 @@
         }
       }
       activeSelectors = { ...DEFAULT_SELECTORS, ...cleanedSelectors };
+    }
+
+    if (dedupConfig) {
+      if (dedupConfig.dedup_enabled !== undefined) {
+        dedupEnabled = !!dedupConfig.dedup_enabled;
+      }
+      if (dedupConfig.dedup_window_seconds !== undefined) {
+        dedupWindowSeconds = Number(dedupConfig.dedup_window_seconds) || 30;
+      }
     }
 
     if (monitoringActive) {
@@ -231,7 +360,10 @@
       if (!err && response && response.success && response.config) {
         myTabConfig = { ...myTabConfig, ...response.config };
         console.log("TikTok Chat Extension: Initialized tab config:", myTabConfig);
-        updateState(myTabConfig.monitoring_active, myTabConfig.selectors);
+        updateState(myTabConfig.monitoring_active, myTabConfig.selectors, {
+          dedup_enabled: myTabConfig.dedup_enabled,
+          dedup_window_seconds: myTabConfig.dedup_window_seconds
+        });
       }
     });
   }
@@ -246,7 +378,10 @@
         const currentConfig = sessions[myTabConfig.tabId];
         if (currentConfig) {
           myTabConfig = { ...myTabConfig, ...currentConfig };
-          updateState(myTabConfig.monitoring_active, myTabConfig.selectors);
+          updateState(myTabConfig.monitoring_active, myTabConfig.selectors, {
+            dedup_enabled: myTabConfig.dedup_enabled,
+            dedup_window_seconds: myTabConfig.dedup_window_seconds
+          });
         }
       }
     }
@@ -258,7 +393,10 @@
       if (message.config) {
         myTabConfig = { ...myTabConfig, ...message.config };
         console.log("TikTok Chat Extension: Tab config updated via direct message:", myTabConfig);
-        updateState(myTabConfig.monitoring_active, myTabConfig.selectors);
+        updateState(myTabConfig.monitoring_active, myTabConfig.selectors, {
+          dedup_enabled: myTabConfig.dedup_enabled,
+          dedup_window_seconds: myTabConfig.dedup_window_seconds
+        });
         sendResponse({ success: true });
       }
     } else if (message.type === "TEST_SCRAPE_DOM") {

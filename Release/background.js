@@ -26,10 +26,26 @@ chrome.runtime.onInstalled.addListener(async () => {
         port: "3003",
         protocol: "http",
         path: "/api/chat/tiktok-comment",
-        ai_reply_id: "default"
+        ai_reply_id: "default",
+        dedup_enabled: true,
+        dedup_window_seconds: 30
       };
       await chrome.storage.local.set({ connection_settings: defaultSettings });
       console.log("Default connection settings initialized in storage:", defaultSettings);
+    } else {
+      let needsUpdate = false;
+      const updated = { ...storageData.connection_settings };
+      if (updated.dedup_enabled === undefined) {
+        updated.dedup_enabled = true;
+        needsUpdate = true;
+      }
+      if (updated.dedup_window_seconds === undefined) {
+        updated.dedup_window_seconds = 30;
+        needsUpdate = true;
+      }
+      if (needsUpdate) {
+        await chrome.storage.local.set({ connection_settings: updated });
+      }
     }
     if (!storageData.tab_sessions) {
       await chrome.storage.local.set({ tab_sessions: {} });
@@ -179,19 +195,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const tabId = sender.tab ? sender.tab.id : null;
     chrome.storage.local.get(["tab_sessions", "connection_settings", "selectors"], (res) => {
       const sessions = res.tab_sessions || {};
-      const globalConn = res.connection_settings || { host: "127.0.0.1", port: "3003", protocol: "http", path: "/api/chat/tiktok-comment", ai_reply_id: "default" };
+      const globalConn = res.connection_settings || { 
+        host: "127.0.0.1", 
+        port: "3003", 
+        protocol: "http", 
+        path: "/api/chat/tiktok-comment", 
+        ai_reply_id: "default",
+        dedup_enabled: true,
+        dedup_window_seconds: 30
+      };
       const globalSelectors = res.selectors || null;
 
       let tabConfig = null;
       if (tabId && sessions[tabId]) {
-        tabConfig = { ...sessions[tabId], tabId };
+        tabConfig = {
+          dedup_enabled: sessions[tabId].dedup_enabled !== undefined ? sessions[tabId].dedup_enabled : (globalConn.dedup_enabled !== undefined ? globalConn.dedup_enabled : true),
+          dedup_window_seconds: sessions[tabId].dedup_window_seconds !== undefined ? sessions[tabId].dedup_window_seconds : (globalConn.dedup_window_seconds !== undefined ? globalConn.dedup_window_seconds : 30),
+          ...sessions[tabId],
+          tabId
+        };
       } else {
         tabConfig = {
           tabId: tabId,
           ai_reply_id: globalConn.ai_reply_id || "default",
           monitoring_active: false,
           selectors: globalSelectors,
-          connection_settings: globalConn
+          connection_settings: globalConn,
+          dedup_enabled: globalConn.dedup_enabled !== undefined ? globalConn.dedup_enabled : true,
+          dedup_window_seconds: globalConn.dedup_window_seconds !== undefined ? globalConn.dedup_window_seconds : 30
         };
       }
       sendResponse({ success: true, config: tabConfig });
