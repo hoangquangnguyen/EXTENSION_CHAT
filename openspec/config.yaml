@@ -1,0 +1,52 @@
+schema: spec-driven
+
+context:
+  Dự án: LIVE Relayer (TikTok & Shopee Live Chat Relayer Extension - Chrome Manifest V3)
+  Ngôn ngữ tài liệu: Tất cả các tài liệu đặc tả OpenSpec (proposals, designs, specs, tasks), giải thích và báo cáo đều sử dụng Tiếng Việt.
+  Mã nguồn: Tên biến, hàm, class, chú thích kỹ thuật và commit message giữ bằng Tiếng Anh chuẩn.
+  Tài liệu tham chiếu cốt lõi: Tham chiếu openspec/project.md và openspec/specs/ trước khi thực hiện bất kỳ thay đổi nào.
+
+rules:
+  proposal:
+    - Trình bày đề xuất bằng Tiếng Việt rõ ràng, súc tích và có cấu trúc.
+    - Nêu rõ bối cảnh, lý do thay đổi và phạm vi ảnh hưởng đến các phân hệ (Content Script, Background, Offscreen, Popup UI).
+    - Đảm bảo tương thích ngược với luồng dữ liệu hiện tại và giao thức chuyển tiếp.
+  design:
+    - Thiết kế kiến trúc và giải pháp kỹ thuật bằng Tiếng Việt.
+    - Tôn trọng mô hình 4 tầng của Chrome Extension Manifest V3.
+    - Tuyệt đối không di dời tác vụ kết nối WebSocket/HTTP hoặc hàng đợi FIFO vào Background Service Worker (vì nguy cơ Service Worker bị đóng).
+    - Xem xét tính độc lập của từng tab (Multi-Tab isolation qua tab_sessions).
+  specs:
+    - Mô tả các yêu cầu chức năng và kịch bản (scenarios: GIVEN / WHEN / THEN) bằng Tiếng Việt.
+    - Tập trung vào hành vi có thể quan sát được (observable behavior) thay vì chi tiết cài đặt sâu.
+    - Tuân thủ cấu trúc hợp đồng dữ liệu Payload chuyển tiếp (nickname, username, message, profilePic, timestamp, ai_reply_id, tabId).
+  tasks:
+    - Danh sách nhiệm vụ và các bước thực hiện viết bằng Tiếng Việt.
+    - Chia nhỏ các task có thể kiểm thử độc lập (testable increments).
+    - Luôn có task đồng bộ mã nguồn giữa thư mục gốc và thư mục Release/ (nếu có thay đổi mã nguồn extension).
+    - Kiểm thử cẩn thận trên cả hai giao thức WebSocket và HTTP POST.
+
+standards:
+  architecture:
+    - Tuân thủ nghiêm ngặt tiêu chuẩn Chrome Extension Manifest V3.
+    - Quản lý vòng đời Offscreen Document dựa trên nhu cầu thực tế (chỉ bật khi có tab giám sát).
+    - Duy trì cơ chế đánh dấu chống trùng lặp bằng data-ext-parsed trên cây DOM.
+  coding:
+    - Sử dụng Vanilla JavaScript (ES6+), không đưa thêm thư viện đóng gói cồng kềnh trừ khi được người dùng yêu cầu.
+    - Đặt tên hàm và biến theo chuẩn camelCase.
+    - Đặt tên thông điệp Runtime theo chuẩn UPPER_SNAKE_CASE.
+    - Đặt tên khóa lưu trữ chrome.storage.local theo chuẩn snake_case.
+  testing:
+    - Do dự án chưa có test runner tự động, mọi thay đổi phải được kiểm tra qua công cụ selector-tester.html và các tính năng chẩn đoán trên Popup UI.
+    - Xác minh tính toàn vẹn của kết nối tới máy chủ đích qua tính năng Test Connection và Test Scraper.
+
+operations:
+  apply:
+    guidance:
+      - Tóm tắt kết quả kiểm thử và tiến độ bằng Tiếng Việt.
+      - Kiểm tra kỹ việc giải phóng tài nguyên khi tab bị đóng (chrome.tabs.onRemoved).
+  archive:
+    guidance:
+      - Đồng bộ các delta specs vào openspec/specs/ trước khi archive.
+      - Cập nhật openspec/project.md nếu có sự thay đổi lớn về kiến trúc hoặc dữ liệu.
+      - Tóm tắt kết quả lưu trữ (archive) bằng Tiếng Việt.
